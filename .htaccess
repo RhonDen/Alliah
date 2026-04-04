@@ -1,0 +1,2 @@
+# Deny access to includes folder
+RedirectMatch 403 ^/includes/.*$

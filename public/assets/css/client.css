@@ -1,0 +1,217 @@
+/* client.css – Client portal styles (matching index design) */
+
+/* Use same gradient background as admin */
+body {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+}
+
+.client-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Stats cards */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 28px;
+    padding: 1.8rem 1.5rem;
+    text-align: center;
+    box-shadow: 0 12px 28px -8px rgba(31, 129, 106, 0.12);
+    transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    border: 1px solid rgba(115, 199, 180, 0.2);
+}
+
+.stat-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 30px 40px -16px rgba(31, 129, 106, 0.2);
+    border-color: rgba(31, 129, 106, 0.4);
+}
+
+.stat-card h3 {
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #5c7a72;
+    margin-bottom: 0.75rem;
+}
+
+.stat-card p {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #1f816a;
+    margin: 0;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 28px;
+    padding: 2rem;
+    box-shadow: 0 12px 28px -8px rgba(31, 129, 106, 0.12);
+    border: 1px solid rgba(115, 199, 180, 0.2);
+}
+
+.card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: #1a3a34;
+    font-weight: 600;
+    position: relative;
+    display: inline-block;
+}
+
+.card h3:after {
+    content: '';
+    display: block;
+    width: 50px;
+    height: 3px;
+    background: linear-gradient(90deg, #1f816a, #73c7b4);
+    margin-top: 8px;
+    border-radius: 2px;
+}
+
+/* Forms */
+form div {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #2c554b;
+}
+
+input, select {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border: 1px solid #d0e2dc;
+    border-radius: 24px;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: #fefefe;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #1f816a;
+    box-shadow: 0 0 0 3px rgba(31, 129, 106, 0.2);
+}
+
+.btn-submit {
+    background: #1f816a;
+    color: white;
+    border: none;
+    padding: 0.9rem 2rem;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: auto;
+}
+
+.btn-submit:hover {
+    background: #48a48f;
+    transform: translateY(-2px);
+}
+
+.btn-book {
+    display: inline-block;
+    background: #1f816a;
+    color: white;
+    padding: 0.6rem 1.5rem;
+    border-radius: 40px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    margin-top: 1rem;
+}
+
+.btn-book:hover {
+    background: #48a48f;
+    transform: scale(1.02);
+}
+
+/* Tables */
+.appointments-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.appointments-table th,
+.appointments-table td {
+    padding: 1rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #e2f0ec;
+}
+
+.appointments-table th {
+    background: transparent;
+    font-weight: 600;
+    color: #1a3a34;
+    font-size: 0.9rem;
+}
+
+/* Status colours */
+.status-pending {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.status-approved {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.status-rejected {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.status-completed {
+    color: #1f816a;
+    font-weight: 600;
+}
+
+/* Flash messages */
+.error-message, .success-message {
+    padding: 0.75rem 1rem;
+    border-radius: 20px;
+    margin-bottom: 1.5rem;
+}
+
+.error-message {
+    background: #fed7d7;
+    color: #c53030;
+    border: 1px solid #fc8181;
+}
+
+.success-message {
+    background: #c6f6d5;
+    color: #22543d;
+    border: 1px solid #9ae6b4;
+}
+
+/* Responsive table */
+@media (max-width: 768px) {
+    .client-container {
+        padding: 1rem;
+    }
+    .appointments-table th,
+    .appointments-table td {
+        font-size: 0.85rem;
+        padding: 0.75rem 0.25rem;
+    }
+}
