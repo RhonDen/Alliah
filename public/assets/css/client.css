@@ -1,8 +1,30 @@
-/* client.css – Client portal styles (matching index design) */
+/* client.css – Unified client portal styles */
 
-/* Use same gradient background as admin */
+:root {
+    --primary: #1f816a;
+    --primary-dark: #166b57;
+    --primary-light: #48a48f;
+    --primary-lighter: #73c7b4;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --shadow: 0 4px 12px rgba(31, 129, 106, 0.08);
+    --shadow-md: 0 12px 28px -8px rgba(31, 129, 106, 0.12);
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+}
+
 body {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    background: linear-gradient(135deg, var(--gray-50) 0%, #e9ecef 100%) !important;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--gray-800);
 }
 
 .client-container {
@@ -11,7 +33,7 @@ body {
     padding: 2rem;
 }
 
-/* Stats cards */
+/* Stats Cards */
 .stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -21,62 +43,73 @@ body {
 
 .stat-card {
     background: white;
-    border-radius: 28px;
-    padding: 1.8rem 1.5rem;
+    border-radius: var(--radius-xl);
+    padding: 2rem 1.75rem;
     text-align: center;
-    box-shadow: 0 12px 28px -8px rgba(31, 129, 106, 0.12);
-    transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-    border: 1px solid rgba(115, 199, 180, 0.2);
+    box-shadow: var(--shadow);
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.4, 1);
+    border: 1px solid rgba(31, 129, 106, 0.1);
 }
 
 .stat-card:hover {
     transform: translateY(-6px);
-    box-shadow: 0 30px 40px -16px rgba(31, 129, 106, 0.2);
-    border-color: rgba(31, 129, 106, 0.4);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(31, 129, 106, 0.2);
 }
 
 .stat-card h3 {
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 0.95rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #5c7a72;
+    letter-spacing: 0.5px;
+    color: var(--gray-600);
     margin-bottom: 0.75rem;
 }
 
 .stat-card p {
-    font-size: 2.5rem;
+    font-size: 2.75rem;
     font-weight: 800;
-    color: #1f816a;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
     margin: 0;
 }
 
 /* Cards */
 .card {
     background: white;
-    border-radius: 28px;
+    border-radius: var(--radius-xl);
     padding: 2rem;
-    box-shadow: 0 12px 28px -8px rgba(31, 129, 106, 0.12);
-    border: 1px solid rgba(115, 199, 180, 0.2);
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(31, 129, 106, 0.1);
+    margin-bottom: 2rem;
 }
 
 .card h3 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
-    color: #1a3a34;
-    font-weight: 600;
+    color: var(--gray-800);
+    font-weight: 700;
     position: relative;
     display: inline-block;
 }
 
-.card h3:after {
+.card h3::after {
     content: '';
     display: block;
-    width: 50px;
+    width: 60px;
     height: 3px;
-    background: linear-gradient(90deg, #1f816a, #73c7b4);
+    background: linear-gradient(90deg, var(--primary), var(--primary-lighter));
     margin-top: 8px;
     border-radius: 2px;
+}
+
+.card h4 {
+    font-size: 1.2rem;
+    color: var(--gray-800);
+    font-weight: 700;
+    margin: 1.5rem 0 1rem 0;
 }
 
 /* Forms */
@@ -86,132 +119,349 @@ form div {
 
 label {
     display: block;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    color: #2c554b;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--gray-700);
+    font-size: 0.95rem;
 }
 
-input, select {
+input,
+select {
     width: 100%;
-    padding: 0.9rem 1rem;
-    border: 1px solid #d0e2dc;
-    border-radius: 24px;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-lg);
     font-family: inherit;
     font-size: 1rem;
-    transition: all 0.2s ease;
-    background: #fefefe;
+    transition: all 0.3s ease;
+    background: white;
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus {
     outline: none;
-    border-color: #1f816a;
-    box-shadow: 0 0 0 3px rgba(31, 129, 106, 0.2);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(31, 129, 106, 0.15);
+    background: white;
+}
+
+/* Buttons */
+.btn-submit,
+.btn-book {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: var(--radius-lg);
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btn-submit:hover,
+.btn-book:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
 }
 
 .btn-submit {
-    background: #1f816a;
-    color: white;
-    border: none;
-    padding: 0.9rem 2rem;
-    border-radius: 40px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
     width: auto;
-}
-
-.btn-submit:hover {
-    background: #48a48f;
-    transform: translateY(-2px);
-}
-
-.btn-book {
-    display: inline-block;
-    background: #1f816a;
-    color: white;
-    padding: 0.6rem 1.5rem;
-    border-radius: 40px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.2s ease;
     margin-top: 1rem;
 }
 
-.btn-book:hover {
-    background: #48a48f;
-    transform: scale(1.02);
+.btn-book {
+    padding: 0.75rem 1.75rem;
+    display: inline-block;
+    margin-top: 1rem;
 }
 
 /* Tables */
 .appointments-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 1rem;
-}
-
-.appointments-table th,
-.appointments-table td {
-    padding: 1rem 0.5rem;
-    text-align: left;
-    border-bottom: 1px solid #e2f0ec;
+    margin-top: 1.5rem;
+    background: white;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
 }
 
 .appointments-table th {
-    background: transparent;
-    font-weight: 600;
-    color: #1a3a34;
+    background: linear-gradient(135deg, rgba(31, 129, 106, 0.05), rgba(72, 164, 143, 0.05));
+    padding: 1.25rem;
+    text-align: left;
+    font-weight: 700;
+    color: var(--gray-600);
     font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-bottom: 2px solid rgba(31, 129, 106, 0.1);
 }
 
-/* Status colours */
+.appointments-table td {
+    padding: 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 0.95rem;
+}
+
+.appointments-table tr:hover td {
+    background: rgba(31, 129, 106, 0.02);
+}
+
+.appointments-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Status Colors */
 .status-pending {
     color: #f59e0b;
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.2px;
 }
 
 .status-approved {
     color: #10b981;
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.2px;
 }
 
 .status-rejected {
     color: #ef4444;
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.2px;
 }
 
 .status-completed {
-    color: #1f816a;
-    font-weight: 600;
+    color: var(--primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.2px;
 }
 
-/* Flash messages */
-.error-message, .success-message {
-    padding: 0.75rem 1rem;
-    border-radius: 20px;
+/* Flash Messages */
+.error-message,
+.success-message {
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-lg);
     margin-bottom: 1.5rem;
+    font-weight: 600;
+    border-left: 4px solid;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .error-message {
-    background: #fed7d7;
-    color: #c53030;
-    border: 1px solid #fc8181;
+    background: rgba(239, 68, 68, 0.1);
+    color: #991b1b;
+    border-left-color: #ef4444;
 }
 
 .success-message {
-    background: #c6f6d5;
-    color: #22543d;
-    border: 1px solid #9ae6b4;
+    background: rgba(16, 185, 129, 0.1);
+    color: #065f46;
+    border-left-color: #10b981;
 }
 
-/* Responsive table */
+/* Responsive */
+@media (max-width: 1024px) {
+    .client-container {
+        padding: 1.5rem;
+    }
+    
+    .stat-card {
+        padding: 1.5rem 1.25rem;
+    }
+    
+    .card {
+        padding: 1.5rem;
+    }
+}
+
 @media (max-width: 768px) {
     .client-container {
-        padding: 1rem;
+        padding: 0.75rem;
     }
-    .appointments-table th,
+
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        padding: 1.25rem 1rem;
+        border-radius: 1rem;
+    }
+    
+    .stat-card h3 {
+        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card p {
+        font-size: 2rem;
+    }
+
+    .card {
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border-radius: 1rem;
+    }
+
+    .card h3 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+
+    .card h3::after {
+        width: 40px;
+        height: 2px;
+    }
+
+    .appointments-table {
+        font-size: 0.8rem;
+        margin-top: 1rem;
+    }
+
+    .appointments-table th {
+        padding: 0.7rem 0.5rem;
+        font-size: 0.7rem;
+    }
+
     .appointments-table td {
+        padding: 0.7rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    input,
+    select {
+        padding: 0.8rem 0.9rem;
+        font-size: 0.9rem;
+        border-radius: 0.6rem;
+    }
+
+    label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-submit,
+    .btn-book {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.9rem;
+        border-radius: 0.6rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .client-container {
+        padding: 0.5rem;
+    }
+
+    .stats {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-card {
+        padding: 1rem 0.75rem;
+        border-radius: 0.75rem;
+    }
+    
+    .stat-card h3 {
+        font-size: 0.7rem;
+        letter-spacing: 0.3px;
+        margin-bottom: 0.4rem;
+    }
+
+    .stat-card p {
+        font-size: 1.75rem;
+    }
+
+    .card {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        border-radius: 0.75rem;
+    }
+
+    .card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .card h3::after {
+        width: 35px;
+        height: 2px;
+        margin-top: 6px;
+    }
+
+    .card h4 {
+        font-size: 1rem;
+        margin: 1rem 0 0.75rem 0;
+    }
+
+    .appointments-table {
+        font-size: 0.7rem;
+        margin-top: 0.75rem;
+    }
+
+    .appointments-table th {
+        padding: 0.5rem 0.3rem;
+        font-size: 0.6rem;
+        letter-spacing: 0;
+    }
+
+    .appointments-table td {
+        padding: 0.5rem 0.3rem;
+        font-size: 0.7rem;
+    }
+
+    input,
+    select {
+        padding: 0.7rem 0.8rem;
         font-size: 0.85rem;
-        padding: 0.75rem 0.25rem;
+        border-radius: 0.5rem;
+    }
+
+    label {
+        font-size: 0.85rem;
+        margin-bottom: 0.4rem;
+    }
+    
+    .btn-submit,
+    .btn-book {
+        padding: 0.7rem 1.25rem;
+        font-size: 0.85rem;
+        border-radius: 0.5rem;
+        width: auto;
+        margin-top: 0.75rem;
+    }
+    
+    /* Override for full-width form buttons */
+    .card form .btn-submit {
+        width: 100%;
     }
 }

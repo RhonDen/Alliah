@@ -8,6 +8,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <div class="nav-links">
             <a href="dashboard.php" <?php echo $current_page === 'dashboard.php' ? 'class="active"' : ''; ?>>Dashboard</a>
             <a href="appointments.php" <?php echo $current_page === 'appointments.php' ? 'class="active"' : ''; ?>>Appointments</a>
+            <a href="users.php" <?php echo $current_page === 'users.php' ? 'class="active"' : ''; ?>>Clients</a>
             <a href="walkin.php" <?php echo $current_page === 'walkin.php' ? 'class="active"' : ''; ?>>Walk-in</a>
             <a href="analytics.php" <?php echo $current_page === 'analytics.php' ? 'class="active"' : ''; ?>>Analytics</a>
             <a href="../logout.php" class="btn-outline">Logout</a>

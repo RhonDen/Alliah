@@ -67,8 +67,8 @@ if (isPostRequest()) {
         <div class="auth-card">
             <div class="auth-header">
                 <i class="fas fa-lock-open" style="font-size: 3rem; color: #48a48f; margin-bottom: 1rem;"></i>
-                <h1>Set Your Password</h1>
-                <p>Complete your account activation for <?php echo htmlspecialchars($identifier); ?></p>
+                <h1>Complete Your Account</h1>
+                <p>Since you already registered through a walk-in appointment, just set your password to activate your account for <?php echo htmlspecialchars($identifier); ?>.</p>
             </div>
 
             <?php if ($flash): ?>

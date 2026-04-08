@@ -35,6 +35,15 @@ $recentAppointments = getRecentAppointments($pdo, 6);
             <div class="stat-card"><h3>Completed Visits</h3><p><?php echo e($stats['completed']); ?></p></div>
         </div>
 
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <h3>Search Clients</h3>
+            <form method="GET" action="users.php" class="filter-form" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <input type="text" name="q" placeholder="Search clients by name or email" style="flex: 1; min-width: 220px;">
+                <button type="submit">Search</button>
+            </form>
+            <p style="margin-top: 0.75rem; color: var(--gray-600);">Use the client list to view profiles and appointment history.</p>
+        </div>
+
         <div class="card">
             <h3>Recent Booking Activity</h3>
             <div id="recent-appointments">

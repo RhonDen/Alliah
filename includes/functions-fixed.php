@@ -115,8 +115,8 @@ function createWalkInClient($pdo, $first_name, $last_name, $email, $mobile, $age
     if (empty($errors)) {
         $existing = findUserByIdentifier($pdo, $normMobile) ?? findUserByIdentifier($pdo, $email);
         if ($existing) return ['success' => false, 'errors' => ['Patient exists.'], 'user_id' => $existing['id']];
-        $stmt = $pdo->prepare('INSERT INTO users (role, first_name, last_name, email, mobile, age, password) VALUES (?, ?, ?, ?, ?, ?, NULL)');
-        $success = $stmt->execute(['client', $first_name, $last_name, $email ?: null, $normMobile, $age ?: 0]);
+        $stmt = $pdo->prepare('INSERT INTO users (role, first_name, last_name, email, mobile, age, password) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $success = $stmt->execute(['client', $first_name, $last_name, $email ?: null, $normMobile, $age ?: 0, '']);
         $user_id = $pdo->lastInsertId();
         return ['success' => $success, 'errors' => $success ? [] : ['Failed to create patient.'], 'user_id' => $success ? $user_id : null];
     }

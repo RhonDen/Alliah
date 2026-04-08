@@ -135,9 +135,18 @@ function getServiceById(PDO $pdo, int $serviceId): ?array
     return $service ?: null;
 }
 
-function getPatients(PDO $pdo): array
+function getPatients(PDO $pdo, ?string $search = null): array
 {
-    $stmt = $pdo->query("SELECT id, first_name, last_name, email, mobile FROM users WHERE role = 'client' ORDER BY first_name, last_name");
+    $sql = "SELECT id, first_name, last_name, email, mobile FROM users WHERE role = 'client'";
+    $params = [];
+    if ($search !== null && $search !== '') {
+        $sql .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR CONCAT(last_name, ' ', first_name) LIKE ? )";
+        $searchTerm = '%' . $search . '%';
+        $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm];
+    }
+    $sql .= ' ORDER BY first_name, last_name';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     return $stmt->fetchAll();
 }
 
@@ -348,7 +357,7 @@ function getAllAppointments(PDO $pdo, array $filters = []): array
         $sql .= ' AND a.status = ?';
         $params[] = $filters['status'];
     }
-    $sql .= ' ORDER BY a.appointment_date ASC, a.appointment_time ASC, a.created_at DESC';
+    $sql .= ' ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.created_at DESC';
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll();

@@ -120,7 +120,7 @@ $availableTimeSlots = $selectedDate ? getAvailableTimeSlots($pdo, $selectedDate)
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <p><a href="../register.php" target="_blank" class="walkin-new-patient">+ Register new patient</a></p>
+                        <p><button type="button" class="walkin-new-patient" onclick="document.getElementById('new-patient').click()">+ Register new patient</button></p>
                     </div>
                 </div>
 
@@ -248,5 +248,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+<script src="../assets/js/phone-format.js"></script>
 </body>
 </html>

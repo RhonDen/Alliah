@@ -65,8 +65,8 @@ if (isPostRequest()) {
         
         if ($existingUser) {
             if (empty($existingUser['password'])) {
-                // Existing guest - redirect to set-password
-                setFlashMessage('info', 'Account exists! Set your password to activate.');
+                // Existing guest from walk-in / face-to-face appointment
+                setFlashMessage('info', 'It looks like you already have a walk-in appointment. Please complete your account setup by creating a password.');
                 redirect('set-password.php?identifier=' . urlencode($form['mobile'] ?: $form['email']));
             } else {
                 $error = 'Account already exists with this mobile/email. Please log in.';
@@ -281,7 +281,56 @@ if (isPostRequest()) {
         }
         .btn-auth:hover {
             background: #48a48f;
-            transform: scale(1.02);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(31, 129, 106, 0.18);
+        }
+        .btn-secondary {
+            width: 100%;
+            background: #ffffff;
+            color: #1f816a;
+            border: 2px solid #1f816a;
+            padding: 0.95rem 1rem;
+            border-radius: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover {
+            background: #eaf7f1;
+            color: #144a3a;
+            transform: translateY(-1px);
+        }
+        .walkin-cta {
+            margin-top: 1.5rem;
+            padding: 1.3rem 1.4rem;
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(239, 250, 245, 0.95), rgba(255, 255, 255, 0.95));
+            border: 1px solid rgba(31, 129, 106, 0.15);
+            box-shadow: 0 18px 40px rgba(31, 129, 106, 0.08);
+            display: none;
+        }
+        .walkin-cta.visible {
+            display: block;
+        }
+        .walkin-cta h3 {
+            margin: 0 0 0.5rem;
+            font-size: 1rem;
+            color: #134d3d;
+        }
+        .walkin-cta p {
+            margin: 0 0 1rem;
+            color: #385e51;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+        .walkin-redirect {
+            display: block;
+        }
+        .walkin-redirect.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            pointer-events: none;
         }
         .auth-link {
             text-align: center;
@@ -426,6 +475,41 @@ if (isPostRequest()) {
                     if (e.key === 'Escape') nav.classList.remove('open');
                 });
             }
+
+            const walkinLink = document.getElementById('walkin-account-link');
+            const mobileInput = document.getElementById('mobile');
+            const emailInput = document.getElementById('email');
+            const walkinPanel = document.getElementById('walkin-cta-panel');
+            if (walkinLink) {
+                walkinLink.addEventListener('click', function (e) {
+                    if (walkinLink.classList.contains('disabled')) {
+                        e.preventDefault();
+                        alert('Enter your mobile number or email first to continue.');
+                    }
+                });
+            }
+
+            function updateWalkinLink() {
+                const mobile = mobileInput?.value.trim();
+                const email = emailInput?.value.trim();
+                const identifier = mobile || email || '';
+
+                if (walkinPanel) {
+                    walkinPanel.classList.toggle('visible', Boolean(identifier));
+                }
+
+                if (identifier && walkinLink) {
+                    walkinLink.href = 'set-password.php?identifier=' + encodeURIComponent(identifier);
+                    walkinLink.classList.remove('disabled');
+                } else if (walkinLink) {
+                    walkinLink.href = '#';
+                    walkinLink.classList.add('disabled');
+                }
+            }
+
+            mobileInput?.addEventListener('input', updateWalkinLink);
+            emailInput?.addEventListener('input', updateWalkinLink);
+            updateWalkinLink();
         });
     </script>
 
@@ -495,6 +579,11 @@ if (isPostRequest()) {
                     <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn-auth">Get Started →</button>
+                <div class="walkin-cta" id="walkin-cta-panel">
+                    <h3>Already registered at walk-in?</h3>
+                    <p>Use this button to complete your account setup after your face-to-face appointment. Just enter the same mobile number or email used during registration.</p>
+                    <a id="walkin-account-link" class="btn-secondary walkin-redirect disabled" href="#">Finish walk-in account setup</a>
+                </div>
             </form>
 
             <p class="auth-link">Already have an account? <a href="login.php">Sign in</a></p>
