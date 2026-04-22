@@ -4,7 +4,8 @@ requireRole('admin');
 
 $flash = getFlashMessage();
 $stats = getAdminDashboardStats($pdo);
-$recentAppointments = getRecentAppointments($pdo, 6);
+$recentLimit = 15;
+$recentAppointments = getRecentAppointments($pdo, $recentLimit);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -35,40 +36,9 @@ $recentAppointments = getRecentAppointments($pdo, 6);
             <div class="stat-card"><h3>Completed Visits</h3><p><?php echo e($stats['completed']); ?></p></div>
         </div>
 
-        <div class="card" style="margin-bottom: 1.5rem;">
-            <h3>Search Clients</h3>
-            <form method="GET" action="users.php" class="filter-form" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                <input type="text" name="q" placeholder="Search clients by name or email" style="flex: 1; min-width: 220px;">
-                <button type="submit">Search</button>
-            </form>
-            <p style="margin-top: 0.75rem; color: var(--gray-600);">Use the client list to view profiles and appointment history.</p>
-        </div>
-
         <div class="card">
-            <h3>Recent Booking Activity</h3>
             <div id="recent-appointments">
-                <?php if (!$recentAppointments): ?>
-                    <p>No appointment activity yet.</p>
-                <?php else: ?>
-                    <div style="overflow-x: auto;">
-                        <table class="appointments-table">
-                            <thead>
-                                <tr><th>Patient</th><th>Service</th><th>Date</th><th>Time</th><th>Status</th></tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($recentAppointments as $appointment): ?>
-                                <tr>
-                                    <td><?php echo e($appointment['first_name'] . ' ' . $appointment['last_name']); ?></td>
-                                    <td><?php echo e($appointment['service_name']); ?></td>
-                                    <td><?php echo e($appointment['appointment_date']); ?></td>
-                                    <td><?php echo e(formatAppointmentTime($appointment['appointment_time'])); ?></td>
-                                    <td class="status-<?php echo e($appointment['status']); ?>"><?php echo e(ucfirst($appointment['status'])); ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
+                <?php include '../../includes/public/partials/admin-recent-activity.php'; ?>
             </div>
         </div>
     </main>

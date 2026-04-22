@@ -1,3 +1,9 @@
+<?php
+$homeUrl = BASE_URL . 'index.php';
+$bookUrl = BASE_URL . 'client/book.php';
+$historyUrl = BASE_URL . 'my-bookings.php';
+$staffLoginUrl = BASE_URL . 'login.php';
+?>
 <footer class="footer-enhanced">
     <div class="container">
         <div class="footer-content grid">
@@ -7,15 +13,16 @@
             </div>
             <div class="footer-section">
                 <h4>Quick Links</h4>
-                <a href="../index.php">Home</a>
-                <a href="../index.php#services">Services</a>
-                <a href="../index.php#about">About</a>
-                <a href="../login.php">Login</a>
+                <a href="<?php echo e($homeUrl); ?>">Home</a>
+                <a href="<?php echo e($homeUrl); ?>#services">Services</a>
+                <a href="<?php echo e($homeUrl); ?>#about">About</a>
+                <a href="<?php echo e($staffLoginUrl); ?>">Staff Login</a>
             </div>
             <div class="footer-section">
-                <h4>Contact</h4>
-                <p>(555) 123-4567</p>
-                <p>info@dentscity.com</p>
+                <h4>Patient Access</h4>
+                <a href="<?php echo e($bookUrl); ?>">Book Appointment</a>
+                <a href="<?php echo e($historyUrl); ?>">My Bookings</a>
+                <p>Verify with SMS OTP, no password needed.</p>
             </div>
             <div class="footer-section">
                 <h4>Follow Us</h4>

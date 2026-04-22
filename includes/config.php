@@ -46,6 +46,14 @@ if (!defined('DB_PASS')) {
     define('DB_PASS', '');
 }
 
+if (!defined('UNISMS_ACCESS_KEY')) {
+    define('UNISMS_ACCESS_KEY', 'sk_b27982d7-8017-47b3-9433-b338b61a5fae');
+}
+
+if (!defined('UNISMS_SENDER')) {
+    define('UNISMS_SENDER', 'DentsCity');
+}
+
 if (!function_exists('detectBaseUrl')) {
     function detectBaseUrl(): string
     {
@@ -60,8 +68,30 @@ if (!function_exists('detectBaseUrl')) {
 
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '/alliah/public/index.php');
-        $basePath = preg_replace('#/[^/]+$#', '/', $scriptName);
+        $publicRoot = str_replace('\\', '/', (string) realpath(dirname(__DIR__) . '/public'));
+        $documentRoot = str_replace('\\', '/', (string) realpath($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $basePath = null;
+
+        if ($publicRoot !== '' && $documentRoot !== '') {
+            $publicRootNormalized = rtrim(strtolower($publicRoot), '/');
+            $documentRootNormalized = rtrim(strtolower($documentRoot), '/');
+
+            if ($publicRootNormalized === $documentRootNormalized) {
+                $basePath = '/';
+            } elseif (str_starts_with($publicRootNormalized, $documentRootNormalized . '/')) {
+                $relativePath = trim(substr($publicRoot, strlen($documentRoot)), '/');
+                $basePath = '/' . ($relativePath !== '' ? $relativePath . '/' : '');
+            }
+        }
+
+        if ($basePath === null) {
+            $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '/alliah/public/index.php');
+            if (preg_match('#^(.*?/public)/#i', $scriptName, $matches)) {
+                $basePath = $matches[1];
+            } else {
+                $basePath = preg_replace('#/[^/]+$#', '/', $scriptName);
+            }
+        }
 
         return $scheme . '://' . $host . $basePath;
     }

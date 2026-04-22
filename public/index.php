@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dents-City Dental Clinic | Modern Care Redefined</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,8 +73,11 @@
     .section-title {
       text-align: center;
       margin-bottom: 3rem;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
     }
-    
+
     .section-title h2 {
       margin-bottom: 0.5rem;
     }
@@ -80,17 +85,17 @@
     .section-title::after {
       content: '';
       display: block;
-      width: 80px;
-      height: 3px;
+      width: 84px;
+      height: 4px;
       background: linear-gradient(90deg, var(--primary), var(--accent));
       margin: 1rem auto 0;
-      border-radius: 2px;
+      border-radius: 999px;
     }
 
     p {
-      color: #3c5a54;
+      color: #2f4d48;
       font-weight: 400;
-      line-height: 1.6;
+      line-height: 1.75;
     }
 
     .container {
@@ -102,11 +107,11 @@
     }
 
     .section {
-      padding: 90px 0;
+      padding: 120px 0 90px;
     }
 
     .section-alt {
-      background: linear-gradient(145deg, #f0f8f5, #fafefc);
+      background: linear-gradient(145deg, #f5fbf8, #fdfefe);
       position: relative;
       overflow: hidden;
     }
@@ -118,8 +123,116 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: radial-gradient(circle at 0% 0%, rgba(115, 199, 180, 0.05) 0%, transparent 70%);
+      background: radial-gradient(circle at 20% 20%, rgba(115, 199, 180, 0.08), transparent 32%);
       pointer-events: none;
+    }
+
+    .hero {
+      position: relative;
+      padding: 180px 0 140px;
+      isolation: isolate;
+      overflow: hidden;
+      min-height: 780px;
+      display: flex;
+      align-items: center;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(31, 129, 106, 0.28), rgba(15, 28, 25, 0.4));
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: 8%;
+      right: -20%;
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(circle at center, rgba(115, 199, 180, 0.24), transparent 62%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 3;
+      max-width: 780px;
+      margin: 0 auto;
+      text-align: center;
+      padding-top: 2rem;
+    }
+
+    .hero-content p {
+      font-size: 1.22rem;
+      color: rgba(255, 255, 255, 0.95);
+      max-width: 640px;
+      margin: 0 auto;
+      line-height: 1.7;
+      text-shadow: 0 1px 15px rgba(0, 0, 0, 0.18);
+    }
+
+    .hero-scroll {
+      position: relative;
+      margin: 2rem auto 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-weight: 700;
+      text-decoration: none;
+      opacity: 0.9;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .hero-scroll:hover {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    .hero-scroll .scroll-icon {
+      width: 44px;
+      height: 44px;
+      border: 2px solid rgba(255, 255, 255, 0.95);
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero-scroll .scroll-icon::after {
+      content: '';
+      width: 10px;
+      height: 10px;
+      border-right: 2px solid rgba(255, 255, 255, 0.95);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.95);
+      transform: rotate(45deg);
+      display: block;
+      animation: scroll-bounce 1.4s infinite ease-in-out;
+      margin-top: 4px;
+    }
+
+    @keyframes scroll-bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0) rotate(45deg);
+      }
+      40% {
+        transform: translateY(6px) rotate(45deg);
+      }
+      60% {
+        transform: translateY(3px) rotate(45deg);
+      }
     }
 
     .hero {
@@ -400,45 +513,44 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0.9rem 2rem;
-      border-radius: 60px;
-      font-weight: 600;
+      padding: 1rem 2rem;
+      border-radius: 999px;
+      font-weight: 700;
       font-size: 1rem;
       text-decoration: none;
-      transition: all 0.25s ease;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
       cursor: pointer;
       border: 1px solid transparent;
       letter-spacing: -0.01em;
+      min-height: 52px;
+      box-shadow: 0 12px 28px rgba(15, 28, 25, 0.12);
     }
 
     .btn-primary {
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
     .btn-primary:hover {
-      background: var(--secondary);
-      transform: scale(1.03);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      background: linear-gradient(135deg, var(--secondary), var(--accent));
+      transform: translateY(-2px);
+      box-shadow: 0 18px 36px rgba(15, 28, 25, 0.18);
     }
 
     .btn-primary:active {
-      transform: scale(0.98);
+      transform: translateY(0);
     }
 
     .btn-secondary {
-      background: transparent;
-      border: 1.5px solid white;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1.5px solid rgba(255, 255, 255, 0.38);
       color: white;
-      backdrop-filter: blur(2px);
+      backdrop-filter: blur(10px);
     }
 
     .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: white;
-      color: white;
-      transform: scale(1.02);
+      background: rgba(255, 255, 255, 0.22);
+      transform: translateY(-1px);
     }
 
     .cta-group {
@@ -450,8 +562,8 @@
     }
 
     .footer-enhanced {
-      background: #0e3f36;
-      color: #e0f0ec;
+      background: linear-gradient(180deg, #0f4f43 0%, #0b3a30 100%);
+      color: #e5f4ec;
       padding: 3.5rem 0 1.5rem;
       margin-top: 2rem;
       position: relative;
@@ -465,7 +577,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: radial-gradient(circle at 10% 20%, rgba(115, 199, 180, 0.1), transparent 70%);
+      background: radial-gradient(circle at 10% 20%, rgba(115, 199, 180, 0.16), transparent 70%);
       pointer-events: none;
     }
 
@@ -567,7 +679,7 @@
         padding: 60px 0;
       }
       .hero {
-        padding: 80px 0 70px;
+        padding: 110px 0 70px;
       }
       .hero-content p {
         font-size: 1.1rem;
@@ -637,7 +749,7 @@
   </style>
 </head>
 <body>
-  <section class="hero fade-up-section">
+  <section id="home" class="hero fade-up-section">
     <div class="hero-bg-canvas">
       <spline-viewer url="https://prod.spline.design/9BNhFhTDvHT5pqDj/scene.splinecode"></spline-viewer>
     </div>
@@ -646,8 +758,12 @@
         <h1>Dents-City</h1>
         <p>Modern dental care with seamless appointment booking, comprehensive patient records, and intelligent admin analytics. Experience dentistry redefined.</p>
         <div class="cta-group">
-          <a href="login.php" class="btn btn-primary">Get Started</a>
+          <a href="client/book.php" class="btn btn-primary">Book Appointment</a>
           <a href="#services" class="btn btn-secondary">View Services</a>
+        </div>
+        <div class="hero-scroll" role="presentation">
+          <span class="scroll-icon" aria-hidden="true"></span>
+          <span>Scroll Down</span>
         </div>
       </div>
     </div>
@@ -663,9 +779,9 @@
           <p>30-minute slots with real-time availability. No more double-bookings or scheduling conflicts.</p>
         </div>
         <div class="card">
-          <div class="icon"><i class="fas fa-user-circle"></i></div>
-          <h3>Patient Portal</h3>
-          <p>Complete medical history, appointment records, and personal health dashboard at your fingertips.</p>
+          <div class="icon"><i class="fas fa-mobile-screen-button"></i></div>
+          <h3>Passwordless Patient Access</h3>
+          <p>Book and review appointments with SMS OTP. The same mobile number keeps your patient history linked automatically.</p>
         </div>
         <div class="card">
           <div class="icon"><i class="fas fa-chart-line"></i></div>
@@ -758,10 +874,10 @@
       <div class="footer-content grid">
         <div class="footer-section"><h4>Dents-City Dental</h4><p>Your trusted partner for modern dental care and seamless appointment management.</p></div>
         <div class="footer-section"><h4>Quick Links</h4><a href="#home">Home</a><a href="#about">About</a><a href="#services">Services</a><a href="#location">Location</a><a href="#contact">Contact</a></div>
-        <div class="footer-section"><h4>Patient Portal</h4><a href="login.php">Login</a><a href="register.php">Register</a><a href="client/book.php">Book Appointment</a></div>
+        <div class="footer-section"><h4>Patient Access</h4><a href="client/book.php">Book Appointment</a><a href="my-bookings.php">My Bookings</a><a href="login.php">Staff Login</a></div>
         <div class="footer-section"><h4>Follow Us</h4><div class="social-icons"><a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a><a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a><a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a></div></div>
       </div>
-      <div class="footer-bottom"><p>&copy; 2024 Dents-City Dental Clinic. All rights reserved.</p></div>
+      <div class="footer-bottom"><p>&copy; <?php echo date('Y'); ?> Dents-City Dental Clinic. All rights reserved.</p></div>
     </div>
   </footer>
 

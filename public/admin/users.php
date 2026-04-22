@@ -9,7 +9,7 @@ if ($page === 'view' && $userId) {
     $user = getUser($pdo, $userId);
     if (!$user || $user['role'] !== 'client') {
         setFlashMessage('error', 'User not found.');
-        redirect('users.php');
+        redirect('admin/users.php');
     }
     $history = getUserAppointments($pdo, $userId);
 }
@@ -44,7 +44,7 @@ $flash = getFlashMessage();
                 <div>
                     <p><strong>Name:</strong> <?php echo e($user['first_name'] . ' ' . $user['last_name']); ?></p>
                     <p><strong>Email:</strong> <?php echo e($user['email']); ?></p>
-                    <p><strong>Mobile:</strong> <?php echo e($user['mobile'] ?? ''); ?></p>
+                    <p><strong>Mobile:</strong> <?php echo e(!empty($user['mobile']) ? formatMobileForDisplay($user['mobile']) : ''); ?></p>
                     <p><strong>Age:</strong> <?php echo e($user['age']); ?></p>
                 </div>
                 <div>
@@ -101,7 +101,7 @@ $flash = getFlashMessage();
                         <h3><i class="fas fa-list"></i> All Clients (<?php echo count($users); ?>)</h3>
                         <div class="search-container">
                             <i class="fas fa-search search-icon"></i>
-                            <input type="text" id="clientSearch" placeholder="Search clients by name or email..." class="search-input">
+                            <input type="text" id="clientSearch" placeholder="Search clients by name, email, or mobile..." class="search-input">
                         </div>
                     </div>
 
@@ -122,7 +122,7 @@ $flash = getFlashMessage();
                                         <td style="display: none;"><?php echo e($u['id']); ?></td>
                                         <td><?php echo e($u['first_name'] . ' ' . $u['last_name']); ?></td>
                                         <td><?php echo e($u['email']); ?></td>
-                                        <td><?php echo e($u['mobile'] ?? '—'); ?></td>
+                                        <td><?php echo e(!empty($u['mobile']) ? formatMobileForDisplay($u['mobile']) : '—'); ?></td>
                                         <td><a href="?page=view&id=<?php echo $u['id']; ?>" class="btn-link"><i class="fas fa-eye"></i> View Profile</a></td>
                                     </tr>
                                 <?php endforeach; ?>

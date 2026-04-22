@@ -27,7 +27,40 @@ if (isPostRequest() && isset($_POST['action'])) {
             setFlashMessage('error', 'Cannot update appointments from past dates.');
         } else {
             $result = updateAppointmentStatus($pdo, $appointmentId, $status, $message);
-            setFlashMessage($result['success'] ? 'success' : 'error', $result['success'] ? 'Appointment updated.' : implode(' ', $result['errors']));
+            if ($result['success']) {
+                $notificationSent = false;
+
+                if (in_array($status, ['approved', 'rejected'], true)) {
+                    $stmt = $pdo->prepare(
+                        "SELECT u.mobile, u.first_name, u.last_name, s.name AS service_name,
+                            a.appointment_date, a.appointment_time
+                        FROM appointments a
+                        JOIN users u ON a.user_id = u.id
+                        JOIN services s ON a.service_id = s.id
+                        WHERE a.id = ?"
+                    );
+                    $stmt->execute([$appointmentId]);
+                    $appointmentDetails = $stmt->fetch();
+
+                    if ($appointmentDetails && !empty($appointmentDetails['mobile'])) {
+                        $notificationSent = sendAppointmentStatusSms(
+                            $appointmentDetails['mobile'],
+                            trim($appointmentDetails['first_name'] . ' ' . $appointmentDetails['last_name']),
+                            $appointmentDetails['service_name'],
+                            $appointmentDetails['appointment_date'],
+                            $appointmentDetails['appointment_time'],
+                            $status
+                        );
+                    }
+                }
+
+                setFlashMessage(
+                    'success',
+                    $notificationSent ? 'Appointment updated and patient notified.' : 'Appointment updated.'
+                );
+            } else {
+                setFlashMessage('error', implode(' ', $result['errors']));
+            }
         }
     }
 
@@ -238,6 +271,9 @@ $appointments = getAllAppointments($pdo, $filters);
                                                     <option value="no_show" <?php echo $app['status'] === 'no_show' ? 'selected' : ''; ?>>No‑Show</option>
                                                 </select>
                                                 <input type="text" name="message" class="action-input" placeholder="Optional note" value="<?php echo e($app['admin_message'] ?? ''); ?>" <?php echo $isPastDate ? 'disabled' : ''; ?>>
+                                                <?php if (serviceRequiresTeeth($pdo, $app['service_id'])): ?>
+                                                    <button type="button" class="action-btn open-teeth-chart" data-appointment-id="<?php echo e($app['id']); ?>">🦷 Teeth</button>
+                                                <?php endif; ?>
                                                 <button type="submit" name="action" value="update" class="action-btn" <?php echo $isPastDate ? 'disabled' : ''; ?>>Update</button>
                                                 <?php if ($isPastDate): ?>
                                                     <small style="color: var(--gray-500); font-size: 0.8rem;">Past date - cannot update</small>
@@ -256,6 +292,115 @@ $appointments = getAllAppointments($pdo, $filters);
     </main>
 </div>
 
+<!-- Teeth Marking Modal -->
+<div id="teethModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🦷 Teeth Marking for Appointment #<span id="modalAppointmentId"></span></h3>
+            <button type="button" class="close" aria-label="Close">&times;</button>
+        </div>
+        <div class="tooth-type-toggle">
+            <label>
+                <input type="radio" name="toothType" value="permanent" checked>
+                Permanent (Adult)
+            </label>
+            <label>
+                <input type="radio" name="toothType" value="primary">
+                Primary (Child)
+            </label>
+        </div>
+        <div id="toothChartContainer"></div>
+        <div class="modal-actions">
+            <button id="saveTeethBtn" type="button" class="action-btn">Save Teeth</button>
+            <button id="cancelTeethBtn" type="button" class="reset">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script src="../assets/js/tooth-chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('teethModal');
+        const modalApptId = document.getElementById('modalAppointmentId');
+        let currentAppointmentId = null;
+        let currentToothType = 'permanent';
+
+        async function loadAndRenderTeeth() {
+            if (!currentAppointmentId) {
+                return;
+            }
+            try {
+                const response = await fetch(`../api/get-teeth.php?appointment_id=${currentAppointmentId}&tooth_type=${currentToothType}`);
+                const data = await response.json();
+                const existingTeeth = Array.isArray(data.teeth) ? data.teeth.map(item => item.tooth_number) : [];
+                renderToothChart('toothChartContainer', currentToothType, existingTeeth);
+            } catch (err) {
+                console.error('Failed to load teeth:', err);
+            }
+        }
+
+        document.querySelectorAll('input[name="toothType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    currentToothType = this.value;
+                    loadAndRenderTeeth();
+                }
+            });
+        });
+
+        document.querySelectorAll('.open-teeth-chart').forEach(btn => {
+            btn.addEventListener('click', function() {
+                currentAppointmentId = this.dataset.appointmentId;
+                modalApptId.textContent = currentAppointmentId;
+                currentToothType = 'permanent';
+                const permanentRadio = document.querySelector('input[name="toothType"][value="permanent"]');
+                if (permanentRadio) {
+                    permanentRadio.checked = true;
+                }
+                loadAndRenderTeeth();
+                modal.style.display = 'flex';
+            });
+        });
+
+        const closeButtons = document.querySelectorAll('.close, #cancelTeethBtn');
+        closeButtons.forEach(button => button.addEventListener('click', () => {
+            modal.style.display = 'none';
+        }));
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        document.getElementById('saveTeethBtn').addEventListener('click', async () => {
+            const selected = getSelectedTeeth();
+            const procedure = 'extraction';
+            try {
+                const response = await fetch('../api/save-teeth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        appointment_id: currentAppointmentId,
+                        teeth: selected,
+                        tooth_type: currentToothType,
+                        procedure: procedure,
+                    }),
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Teeth saved successfully!');
+                    modal.style.display = 'none';
+                } else {
+                    alert('Error: ' + (result.error || 'Unable to save selected teeth.'));
+                }
+            } catch (err) {
+                alert('Network error saving teeth.');
+                console.error(err);
+            }
+        });
+    });
+</script>
 
 <script>
     function toggleDateSection(headerElement) {

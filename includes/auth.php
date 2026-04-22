@@ -39,7 +39,7 @@ function logoutUser(): void
 function redirectForRole(?string $role = null): void
 {
     $resolvedRole = $role ?? currentUserRole();
-    $target = $resolvedRole === 'admin' ? 'admin/dashboard.php' : 'client/dashboard.php';
+    $target = $resolvedRole === 'admin' ? 'admin/dashboard.php' : 'my-bookings.php';
     header('Location: ' . BASE_URL . $target);
     exit;
 }

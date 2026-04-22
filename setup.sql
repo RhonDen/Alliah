@@ -7,10 +7,12 @@ CREATE TABLE IF NOT EXISTS users (
     role ENUM('client', 'admin') DEFAULT 'client',
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NULL,
     mobile VARCHAR(20) NOT NULL UNIQUE,
     age INT NOT NULL,
     password VARCHAR(255) NULL,
+    otp_code VARCHAR(10) NULL,
+    otp_expires_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -30,7 +32,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     service_id INT NOT NULL,
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL,
-    status ENUM('pending', 'approved', 'rejected', 'completed') DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'rejected', 'completed', 'no_show') DEFAULT 'pending',
     admin_message TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

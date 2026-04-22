@@ -3,15 +3,6 @@ require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-if (!isLoggedIn()) {
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Please log in to view available appointment times.',
-    ]);
-    exit;
-}
-
 $date = normalizeDate($_GET['date'] ?? null);
 if ($date === null) {
     http_response_code(422);
