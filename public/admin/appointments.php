@@ -46,9 +46,9 @@ if (isPostRequest() && isset($_POST['action'])) {
                         $notificationSent = sendAppointmentStatusSms(
                             $appointmentDetails['mobile'],
                             trim($appointmentDetails['first_name'] . ' ' . $appointmentDetails['last_name']),
-                            $appointmentDetails['service_name'],
                             $appointmentDetails['appointment_date'],
                             $appointmentDetails['appointment_time'],
+                            $appointmentDetails['service_name'],
                             $status
                         );
                     }

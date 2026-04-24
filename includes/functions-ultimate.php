@@ -58,10 +58,40 @@ function normalizeTime($time) {
 function normalizeMobile($mobile) {
     $digits = preg_replace('/\D+/', '', trim($mobile ?? ''));
     if ($digits === '') return null;
-    if (str_starts_with($digits, '63')) $digits = substr($digits, 2);
-    if (str_starts_with($digits, '0')) $digits = substr($digits, 1);
-    if (strlen($digits) !== 10 || $digits[0] !== '9') return null;
-    return '09' . substr($digits, 1, 3) . '-' . substr($digits, 4, 3) . '-' . substr($digits, 7);
+    if (str_starts_with($digits, '63')) {
+        if (strlen($digits) === 12 && substr($digits, 2, 1) === '9') {
+            return $digits;
+        }
+        if (strlen($digits) === 13 && substr($digits, 2, 2) === '09') {
+            return '63' . substr($digits, 3);
+        }
+    }
+    if (str_starts_with($digits, '0')) {
+        $digits = substr($digits, 1);
+    }
+    if (strlen($digits) === 10 && substr($digits, 0, 1) === '9') {
+        return '63' . $digits;
+    }
+    return null;
+}
+
+function formatMobileForDisplay($mobile) {
+    $normalized = normalizeMobile($mobile);
+    if ($normalized === null) {
+        return trim((string) $mobile);
+    }
+    $local = '0' . substr($normalized, 2);
+    return substr($local, 0, 4) . '-' . substr($local, 4, 3) . '-' . substr($local, 7);
+}
+
+function findClientByMobile($pdo, $mobile) {
+    $normalizedMobile = normalizeMobile($mobile);
+    if ($normalizedMobile === null) {
+        return null;
+    }
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE role = 'client' AND mobile = ? LIMIT 1");
+    $stmt->execute([$normalizedMobile]);
+    return $stmt->fetch() ?: null;
 }
 
 function findUserByIdentifier($pdo, $identifier) {
@@ -277,40 +307,187 @@ function normalizeMobileForSms(?string $mobile): ?string {
     return $digits;
 }
 
+function ensureSmsLogDirectory(): string {
+    $logDir = dirname(__DIR__) . '/logs';
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0777, true);
+    }
+    return $logDir;
+}
+
 // Send SMS via UniSMS API
 function sendUniSms(string $mobile, string $message): bool {
-    $accessKey = UNISMS_ACCESS_KEY; // define in config.php
-    $url = 'https://api.unisms.apistd.com';
+    $accessKey = UNISMS_ACCESS_KEY;
+    $url = 'https://unismsapi.com/api/sms';
+
+    $normalized = normalizeMobileForSms($mobile);
+    if ($normalized === null) {
+        return false;
+    }
+
     $data = [
-        'to' => $mobile,
+        'recipient' => '+' . $normalized,
         'content' => $message,
     ];
-    // Optional sender name
-    if (defined('UNISMS_SENDER') && UNISMS_SENDER) {
-        $data['from'] = UNISMS_SENDER;
-    }
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $accessKey,
         'Content-Type: application/json'
     ]);
+    curl_setopt($ch, CURLOPT_USERPWD, $accessKey . ':');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
     $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if ($httpCode !== 200) {
-        return false;
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_errno($ch);
+    $curlErrorMsg = curl_error($ch);
+
+    $success = $response !== false && $curlError === 0 && $httpCode === 201;
+
+    if (!$success) {
+        $logDir = ensureSmsLogDirectory();
+        $logEntry = date('Y-m-d H:i:s') . ' | SMS FAILED' . PHP_EOL;
+        $logEntry .= '  HTTP Code: ' . $httpCode . PHP_EOL;
+        $logEntry .= '  cURL Error: ' . $curlError . ' (' . $curlErrorMsg . ')' . PHP_EOL;
+        $logEntry .= '  Response: ' . ($response === false ? 'false' : $response) . PHP_EOL;
+        $logEntry .= '  Payload: ' . json_encode($data) . PHP_EOL;
+        $logEntry .= str_repeat('-', 40) . PHP_EOL;
+        file_put_contents($logDir . '/sms_errors.log', $logEntry, FILE_APPEND);
     }
-    return true;
+
+    return $success;
 }
 
 // Send OTP verification SMS
 function sendOtpViaSms(string $mobile, string $otp): bool {
     $message = "Your Dents-City verification code is: $otp. Valid for 10 minutes.";
-    return sendUniSms($mobile, $message);
+    return SMS_MOCK_MODE ? sendSmsMock($mobile, $message) : sendUniSms($mobile, $message);
+}
+
+function sendUniSmsOtp(string $mobile, string $contentTemplate): ?string {
+    $accessKey = UNISMS_ACCESS_KEY;
+    $url = 'https://unismsapi.com/api/otp';
+
+    $normalized = normalizeMobileForSms($mobile);
+    if ($normalized === null) {
+        return null;
+    }
+
+    $data = [
+        'recipient' => '+' . $normalized,
+        'content' => $contentTemplate,
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_USERPWD, $accessKey . ':');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_errno($ch);
+    $curlErrorMsg = curl_error($ch);
+
+    $success = $response !== false && $curlError === 0 && $httpCode === 201;
+
+    if (!$success) {
+        $logDir = ensureSmsLogDirectory();
+        $logEntry = date('Y-m-d H:i:s') . ' | OTP FAILED' . PHP_EOL;
+        $logEntry .= '  HTTP Code: ' . $httpCode . PHP_EOL;
+        $logEntry .= '  cURL Error: ' . $curlError . ' (' . $curlErrorMsg . ')' . PHP_EOL;
+        $logEntry .= '  Response: ' . ($response === false ? 'false' : $response) . PHP_EOL;
+        $logEntry .= '  Payload: ' . json_encode($data) . PHP_EOL;
+        $logEntry .= str_repeat('-', 40) . PHP_EOL;
+        file_put_contents($logDir . '/sms_errors.log', $logEntry, FILE_APPEND);
+        return null;
+    }
+
+    $decoded = json_decode((string) $response, true);
+    return $decoded['message']['reference_id'] ?? null;
+}
+
+function verifyUniSmsOtp(string $referenceId, string $pin): bool {
+    $accessKey = UNISMS_ACCESS_KEY;
+    $url = 'https://unismsapi.com/api/otp/verify';
+
+    $data = [
+        'reference_id' => $referenceId,
+        'pin' => $pin,
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_USERPWD, $accessKey . ':');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    if ($response === false || $httpCode !== 200) {
+        return false;
+    }
+
+    $decoded = json_decode((string) $response, true);
+    return ($decoded['code'] ?? 0) === 200;
+}
+
+function requestOtpViaSms(string $mobile): ?array {
+    if (SMS_MOCK_MODE) {
+        $otp = generateOtp();
+        $message = "Your Dents-City verification code is: $otp. Valid for 10 minutes.";
+        sendSmsMock($mobile, $message);
+        return ['type' => 'mock', 'otp' => $otp];
+    }
+
+    $referenceId = sendUniSmsOtp($mobile, 'Your Dents-City verification code is #{PIN}. Valid for 10 minutes.');
+    if ($referenceId === null) {
+        return null;
+    }
+    return ['type' => 'unisms', 'reference_id' => $referenceId];
+}
+
+function verifyOtpSubmission(?array $verification, string $submittedOtp): bool {
+    if (!is_array($verification)) {
+        return false;
+    }
+
+    if (($verification['type'] ?? '') === 'mock') {
+        return $submittedOtp === (string) ($verification['otp'] ?? '');
+    }
+
+    if (($verification['type'] ?? '') === 'unisms') {
+        return verifyUniSmsOtp($verification['reference_id'] ?? '', $submittedOtp);
+    }
+
+    return false;
+}
+
+function sendSmsMock(string $mobile, string $message): bool {
+    $logDir = ensureSmsLogDirectory();
+    $entry = date('Y-m-d H:i:s') . ' | TO: ' . normalizeMobileForSms($mobile) . ' | MSG: ' . trim($message) . PHP_EOL;
+    return file_put_contents($logDir . '/sms_mock.log', $entry, FILE_APPEND) !== false;
 }
 
 // Send appointment status SMS (short, includes patient name)

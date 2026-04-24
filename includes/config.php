@@ -31,19 +31,23 @@ if (!defined('APP_NAME')) {
 }
 
 if (!defined('DB_HOST')) {
-    define('DB_HOST', 'localhost');
+    define('DB_HOST', 'aws-1-ap-northeast-1.pooler.supabase.com');
+}
+
+if (!defined('DB_PORT')) {
+    define('DB_PORT', '6543');
 }
 
 if (!defined('DB_NAME')) {
-    define('DB_NAME', 'alliah');
+    define('DB_NAME', 'postgres');
 }
 
 if (!defined('DB_USER')) {
-    define('DB_USER', 'root');
+    define('DB_USER', 'postgres.ebkqgnjmrovdnpwdvghp');
 }
 
 if (!defined('DB_PASS')) {
-    define('DB_PASS', '');
+    define('DB_PASS', 'vD0CJU7FOTDxv8lF');
 }
 
 if (!defined('UNISMS_ACCESS_KEY')) {
@@ -102,12 +106,28 @@ if (!defined('BASE_URL')) {
 }
 
 try {
-    $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', DB_HOST, DB_NAME);
+    $dsn = sprintf(
+        'pgsql:host=%s;port=%s;dbname=%s;user=%s;password=%s',
+        DB_HOST,
+        DB_PORT,
+        DB_NAME,
+        DB_USER,
+        DB_PASS
+    );
     $pdo = new PDO($dsn, DB_USER, DB_PASS, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 } catch (PDOException $e) {
+    $logDir = dirname(__DIR__) . '/logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0777, true);
+    }
+    @error_log(
+        '[' . date('c') . '] Database connection failed: ' . $e->getMessage() . PHP_EOL,
+        3,
+        $logDir . '/database.log'
+    );
     die('Database connection failed. Please verify your database settings.');
 }

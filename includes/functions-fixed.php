@@ -9,7 +9,7 @@ const CLINIC_CLOSE_TIME = '17:00:00';
 const OTP_EXPIRY_SECONDS = 600;
 
 if (!defined('SMS_MOCK_MODE')) {
-    define('SMS_MOCK_MODE', true);
+    define('SMS_MOCK_MODE', false);
 }
 
 function e($value)
@@ -147,6 +147,11 @@ function normalizeMobile($mobile)
     return null;
 }
 
+function normalizeMobileForSms($mobile)
+{
+    return normalizeMobile($mobile);
+}
+
 function formatMobileForDisplay($mobile)
 {
     $normalized = normalizeMobile($mobile);
@@ -277,7 +282,7 @@ function createWalkInClient($pdo, $firstName, $lastName, $email, $mobile, $age =
 
     $resolvedEmail = $email !== '' ? $email : buildPlaceholderEmail($normalizedMobile);
     $stmt = $pdo->prepare(
-        'INSERT INTO users (role, first_name, last_name, email, mobile, age, password) VALUES (?, ?, ?, ?, ?, ?, NULL)'
+        'INSERT INTO users (role, first_name, last_name, email, mobile, age, password) VALUES (?, ?, ?, ?, ?, ?, NULL) RETURNING id'
     );
     $success = $stmt->execute([
         'client',
@@ -287,11 +292,12 @@ function createWalkInClient($pdo, $firstName, $lastName, $email, $mobile, $age =
         $normalizedMobile,
         $age ?? 0,
     ]);
+    $userId = $success ? (int) $stmt->fetchColumn() : null;
 
     return [
         'success' => $success,
         'errors' => $success ? [] : ['Failed to create patient.'],
-        'user_id' => $success ? (int) $pdo->lastInsertId() : null,
+        'user_id' => $userId,
         'created' => $success,
     ];
 }
@@ -318,9 +324,177 @@ function sendSmsMock($mobile, $message)
     return file_put_contents($logDir . '/sms_mock.log', $entry, FILE_APPEND) !== false;
 }
 
+function sendUniSms($mobile, $message)
+{
+    $accessKey = UNISMS_ACCESS_KEY;
+    $url = 'https://unismsapi.com/api/sms';
+
+    $normalized = normalizeMobileForSms($mobile);
+    if ($normalized === null) {
+        return false;
+    }
+
+    $data = [
+        'recipient' => '+' . $normalized,
+        'content' => trim((string) $message),
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+    ]);
+    curl_setopt($ch, CURLOPT_USERPWD, $accessKey . ':');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_errno($ch);
+    $curlErrorMsg = curl_error($ch);
+
+    $success = $response !== false && $curlError === 0 && $httpCode === 201;
+
+    if (!$success) {
+        $logDir = ensureSmsLogDirectory();
+        $logEntry = date('Y-m-d H:i:s') . ' | SMS FAILED' . PHP_EOL;
+        $logEntry .= '  HTTP Code: ' . $httpCode . PHP_EOL;
+        $logEntry .= '  cURL Error: ' . $curlError . ' (' . $curlErrorMsg . ')' . PHP_EOL;
+        $logEntry .= '  Response: ' . ($response === false ? 'false' : $response) . PHP_EOL;
+        $logEntry .= '  Payload: ' . json_encode($data) . PHP_EOL;
+        $logEntry .= str_repeat('-', 40) . PHP_EOL;
+        file_put_contents($logDir . '/sms_errors.log', $logEntry, FILE_APPEND);
+    }
+
+    return $success;
+}
+
+function sendUniSmsOtp($mobile, $contentTemplate)
+{
+    $accessKey = UNISMS_ACCESS_KEY;
+    $url = 'https://unismsapi.com/api/otp';
+
+    $normalized = normalizeMobileForSms($mobile);
+    if ($normalized === null) {
+        return null;
+    }
+
+    $data = [
+        'recipient' => '+' . $normalized,
+        'content' => $contentTemplate,
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+    ]);
+    curl_setopt($ch, CURLOPT_USERPWD, $accessKey . ':');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_errno($ch);
+    $curlErrorMsg = curl_error($ch);
+
+    $success = $response !== false && $curlError === 0 && $httpCode === 201;
+
+    if (!$success) {
+        $logDir = ensureSmsLogDirectory();
+        $logEntry = date('Y-m-d H:i:s') . ' | OTP FAILED' . PHP_EOL;
+        $logEntry .= '  HTTP Code: ' . $httpCode . PHP_EOL;
+        $logEntry .= '  cURL Error: ' . $curlError . ' (' . $curlErrorMsg . ')' . PHP_EOL;
+        $logEntry .= '  Response: ' . ($response === false ? 'false' : $response) . PHP_EOL;
+        $logEntry .= '  Payload: ' . json_encode($data) . PHP_EOL;
+        $logEntry .= str_repeat('-', 40) . PHP_EOL;
+        file_put_contents($logDir . '/sms_errors.log', $logEntry, FILE_APPEND);
+        return null;
+    }
+
+    $decoded = json_decode((string) $response, true);
+    return $decoded['message']['reference_id'] ?? null;
+}
+
+function verifyUniSmsOtp($referenceId, $pin)
+{
+    $accessKey = UNISMS_ACCESS_KEY;
+    $url = 'https://unismsapi.com/api/otp/verify';
+
+    $data = [
+        'reference_id' => $referenceId,
+        'pin' => $pin,
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+    ]);
+    curl_setopt($ch, CURLOPT_USERPWD, $accessKey . ':');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    if ($response === false || $httpCode !== 200) {
+        return false;
+    }
+
+    $decoded = json_decode((string) $response, true);
+    return ($decoded['code'] ?? 0) === 200;
+}
+
 function sendOtpViaSms($mobile, $otp)
 {
-    return sendSmsMock($mobile, 'Your OTP is: ' . $otp . ' (valid 10 min)');
+    $message = 'Your Dents-City verification code is: ' . $otp . '. Valid for 10 minutes.';
+    return SMS_MOCK_MODE ? sendSmsMock($mobile, $message) : sendUniSms($mobile, $message);
+}
+
+function requestOtpViaSms($mobile)
+{
+    if (SMS_MOCK_MODE) {
+        $otp = generateOtp();
+        $message = 'Your Dents-City verification code is: ' . $otp . '. Valid for 10 minutes.';
+        sendSmsMock($mobile, $message);
+        return ['type' => 'mock', 'otp' => $otp];
+    }
+
+    $referenceId = sendUniSmsOtp($mobile, 'Your Dents-City verification code is #{PIN}. Valid for 10 minutes.');
+    if ($referenceId === null) {
+        return null;
+    }
+    return ['type' => 'unisms', 'reference_id' => $referenceId];
+}
+
+function verifyOtpSubmission($verification, $submittedOtp)
+{
+    if (!is_array($verification)) {
+        return false;
+    }
+
+    if (($verification['type'] ?? '') === 'mock') {
+        return $submittedOtp === (string) ($verification['otp'] ?? '');
+    }
+
+    if (($verification['type'] ?? '') === 'unisms') {
+        return verifyUniSmsOtp($verification['reference_id'] ?? '', $submittedOtp);
+    }
+
+    return false;
 }
 
 function sendAppointmentStatusSms($mobile, $patientName, $date, $time, $service, $status)
@@ -338,7 +512,7 @@ function sendAppointmentStatusSms($mobile, $patientName, $date, $time, $service,
         return false;
     }
 
-    return sendSmsMock($mobile, $message);
+    return SMS_MOCK_MODE ? sendSmsMock($mobile, $message) : sendUniSms($mobile, $message);
 }
 
 function findOrCreateUserByMobile($pdo, $mobile, $firstName, $lastName, $age)
@@ -363,7 +537,7 @@ function findOrCreateUserByMobile($pdo, $mobile, $firstName, $lastName, $age)
     }
 
     $insert = $pdo->prepare(
-        'INSERT INTO users (role, first_name, last_name, email, mobile, age, password) VALUES (?, ?, ?, ?, ?, ?, NULL)'
+        'INSERT INTO users (role, first_name, last_name, email, mobile, age, password) VALUES (?, ?, ?, ?, ?, ?, NULL) RETURNING id'
     );
     $insert->execute([
         'client',
@@ -374,7 +548,7 @@ function findOrCreateUserByMobile($pdo, $mobile, $firstName, $lastName, $age)
         $age,
     ]);
 
-    return (int) $pdo->lastInsertId();
+    return (int) $insert->fetchColumn();
 }
 
 function isValidAppointmentStatus($status)
@@ -478,12 +652,12 @@ function getPatients($pdo, $search = null)
     if ($search !== null && $search !== '') {
         $searchTerm = '%' . $search . '%';
         $sql .= " AND (
-            first_name LIKE ?
-            OR last_name LIKE ?
-            OR email LIKE ?
-            OR mobile LIKE ?
-            OR CONCAT(first_name, ' ', last_name) LIKE ?
-            OR CONCAT(last_name, ' ', first_name) LIKE ?
+            first_name ILIKE ?
+            OR last_name ILIKE ?
+            OR email ILIKE ?
+            OR mobile ILIKE ?
+            OR CONCAT(first_name, ' ', last_name) ILIKE ?
+            OR CONCAT(last_name, ' ', first_name) ILIKE ?
         )";
         $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm];
     }
@@ -638,7 +812,7 @@ function createAppointment($pdo, $userId, $serviceId, $date, $time, $status = 'p
     $message = $message === '' ? null : $message;
 
     $stmt = $pdo->prepare(
-        'INSERT INTO appointments (user_id, service_id, appointment_date, appointment_time, status, admin_message) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO appointments (user_id, service_id, appointment_date, appointment_time, status, admin_message) VALUES (?, ?, ?, ?, ?, ?) RETURNING id'
     );
     $created = $stmt->execute([
         $userId,
@@ -648,12 +822,13 @@ function createAppointment($pdo, $userId, $serviceId, $date, $time, $status = 'p
         $status,
         $message,
     ]);
+    $appointmentId = $created ? (int) $stmt->fetchColumn() : 0;
 
-    if (!$created) {
+    if ($appointmentId < 1) {
         return ['success' => false, 'errors' => ['We could not save the appointment. Please try again.']];
     }
 
-    return ['success' => true, 'errors' => [], 'appointment_id' => (int) $pdo->lastInsertId()];
+    return ['success' => true, 'errors' => [], 'appointment_id' => $appointmentId];
 }
 
 function bookAppointment($pdo, $userId, $serviceId, $date, $time)
@@ -882,11 +1057,11 @@ function getMostBookedServices($pdo, $limit = 5)
 function getAppointmentsByPeriod($pdo, $period = 'daily')
 {
     if ($period === 'daily') {
-        $sql = "SELECT DATE_FORMAT(appointment_date, '%Y-%m-%d') AS label, COUNT(*) AS total FROM appointments GROUP BY appointment_date ORDER BY appointment_date DESC LIMIT 30";
+        $sql = "SELECT TO_CHAR(appointment_date, 'YYYY-MM-DD') AS label, COUNT(*) AS total FROM appointments GROUP BY appointment_date ORDER BY appointment_date DESC LIMIT 30";
     } elseif ($period === 'weekly') {
-        $sql = "SELECT CONCAT(YEAR(appointment_date), '-W', LPAD(WEEK(appointment_date, 1), 2, '0')) AS label, COUNT(*) AS total FROM appointments GROUP BY YEAR(appointment_date), WEEK(appointment_date, 1) ORDER BY YEAR(appointment_date) DESC, WEEK(appointment_date, 1) DESC LIMIT 12";
+        $sql = "SELECT CONCAT(CAST(EXTRACT(YEAR FROM appointment_date) AS INT), '-W', LPAD(CAST(CAST(EXTRACT(WEEK FROM appointment_date) AS INT) AS TEXT), 2, '0')) AS label, COUNT(*) AS total FROM appointments GROUP BY EXTRACT(YEAR FROM appointment_date), EXTRACT(WEEK FROM appointment_date) ORDER BY EXTRACT(YEAR FROM appointment_date) DESC, EXTRACT(WEEK FROM appointment_date) DESC LIMIT 12";
     } else {
-        $sql = "SELECT DATE_FORMAT(appointment_date, '%Y-%m') AS label, COUNT(*) AS total FROM appointments GROUP BY DATE_FORMAT(appointment_date, '%Y-%m') ORDER BY DATE_FORMAT(appointment_date, '%Y-%m') DESC LIMIT 12";
+        $sql = "SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS label, COUNT(*) AS total FROM appointments GROUP BY TO_CHAR(appointment_date, 'YYYY-MM') ORDER BY TO_CHAR(appointment_date, 'YYYY-MM') DESC LIMIT 12";
     }
 
     $stmt = $pdo->query($sql);
@@ -896,10 +1071,10 @@ function getAppointmentsByPeriod($pdo, $period = 'daily')
 function getPeakDays($pdo)
 {
     $stmt = $pdo->query(
-        "SELECT DAYNAME(appointment_date) AS day, COUNT(*) AS total
+        "SELECT TRIM(TO_CHAR(appointment_date, 'Day')) AS day, COUNT(*) AS total
         FROM appointments
-        GROUP BY DAYOFWEEK(appointment_date), DAYNAME(appointment_date)
-        ORDER BY total DESC, DAYOFWEEK(appointment_date) ASC"
+        GROUP BY EXTRACT(DOW FROM appointment_date), TRIM(TO_CHAR(appointment_date, 'Day'))
+        ORDER BY total DESC, EXTRACT(DOW FROM appointment_date) ASC"
     );
     return $stmt->fetchAll();
 }
@@ -917,10 +1092,10 @@ function getMonthlyComparison($pdo)
     $current = date('Y-m');
     $previous = date('Y-m', strtotime('-1 month'));
     $stmt = $pdo->prepare(
-        "SELECT DATE_FORMAT(appointment_date, '%Y-%m') AS month, COUNT(*) AS total
+        "SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS month, COUNT(*) AS total
         FROM appointments
-        WHERE DATE_FORMAT(appointment_date, '%Y-%m') IN (?, ?)
-        GROUP BY DATE_FORMAT(appointment_date, '%Y-%m')"
+        WHERE TO_CHAR(appointment_date, 'YYYY-MM') IN (?, ?)
+        GROUP BY TO_CHAR(appointment_date, 'YYYY-MM')"
     );
     $stmt->execute([$current, $previous]);
     $result = $stmt->fetchAll();

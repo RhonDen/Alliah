@@ -1,0 +1,54 @@
+2026-04-24 13:15:46 | SMS FAILED
+  HTTP Code: 0
+  cURL Error: 60 (SSL certificate problem: certificate has expired)
+  Response: false
+  Payload: {"to":"639997045304","content":"Your Dents-City verification code is: 688275. Valid for 10 minutes.","from":"DentsCity"}
+----------------------------------------
+2026-04-24 13:15:51 | SMS FAILED
+  HTTP Code: 0
+  cURL Error: 60 (SSL certificate problem: certificate has expired)
+  Response: false
+  Payload: {"to":"639997045304","content":"Your Dents-City verification code is: 402603. Valid for 10 minutes.","from":"DentsCity"}
+----------------------------------------
+2026-04-24 13:15:59 | SMS FAILED
+  HTTP Code: 0
+  cURL Error: 60 (SSL certificate problem: certificate has expired)
+  Response: false
+  Payload: {"to":"639997045304","content":"Your Dents-City verification code is: 396936. Valid for 10 minutes.","from":"DentsCity"}
+----------------------------------------
+2026-04-24 13:16:55 | SMS FAILED
+  HTTP Code: 0
+  cURL Error: 60 (SSL certificate problem: certificate has expired)
+  Response: false
+  Payload: {"to":"639997045304","content":"Your Dents-City verification code is: 342966. Valid for 10 minutes.","from":"DentsCity"}
+----------------------------------------
+2026-04-24 13:17:03 | SMS FAILED
+  HTTP Code: 0
+  cURL Error: 60 (SSL certificate problem: certificate has expired)
+  Response: false
+  Payload: {"to":"639997045304","content":"Your Dents-City verification code is: 361017. Valid for 10 minutes.","from":"DentsCity"}
+----------------------------------------
+2026-04-24 13:17:36 | SMS FAILED
+  HTTP Code: 0
+  cURL Error: 60 (SSL certificate problem: certificate has expired)
+  Response: false
+  Payload: {"to":"639997045304","content":"Your Dents-City verification code is: 969381. Valid for 10 minutes.","from":"DentsCity"}
+----------------------------------------
+2026-04-24 13:31:52 | SMS FAILED
+  HTTP Code: 422
+  cURL Error: 0 ()
+  Response: {"errors":{"sender_id":["does not exists"]}}
+  Payload: {"recipient":"+639997045304","content":"Your Dents-City verification code is: 864963. Valid for 10 minutes.","sender_id":"DentsCity"}
+----------------------------------------
+2026-04-24 13:31:59 | SMS FAILED
+  HTTP Code: 422
+  cURL Error: 0 ()
+  Response: {"errors":{"sender_id":["does not exists"]}}
+  Payload: {"recipient":"+639997045304","content":"Your Dents-City verification code is: 629587. Valid for 10 minutes.","sender_id":"DentsCity"}
+----------------------------------------
+2026-04-24 13:33:07 | SMS FAILED
+  HTTP Code: 422
+  cURL Error: 0 ()
+  Response: {"errors":{"sender_id":["does not exists"]}}
+  Payload: {"recipient":"+639932084140","content":"Your Dents-City verification code is: 667995. Valid for 10 minutes.","sender_id":"DentsCity"}
+----------------------------------------

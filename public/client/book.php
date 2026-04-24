@@ -68,24 +68,23 @@ if (isPostRequest() && isset($_POST['request_otp'])) {
     }
 
     if (empty($errors)) {
-        $otp = generateOtp();
-        $_SESSION['booking_otp'] = [
-            'otp' => $otp,
-            'expires' => time() + OTP_EXPIRY_SECONDS,
-            'mobile_display' => $normalizedMobileDisplay,
-            'mobile_sms' => $normalizedMobileSms,
-            'first_name' => $form['first_name'],
-            'last_name' => $form['last_name'],
-            'age' => (int) $age,
-            'service_id' => (int) $validation['service_id'],
-            'date' => $validation['date'],
-            'time' => $validation['time'],
-        ];
-
-        if (!sendOtpViaSms($normalizedMobileSms, $otp)) {
-            unset($_SESSION['booking_otp']);
+        $verification = requestOtpViaSms($normalizedMobileSms);
+        if ($verification === null) {
             $errors[] = 'Failed to send OTP. Please try again.';
         } else {
+            $_SESSION['booking_otp'] = [
+                'verification' => $verification,
+                'expires' => time() + OTP_EXPIRY_SECONDS,
+                'mobile' => $normalizedMobileSms,
+                'mobile_display' => $normalizedMobileDisplay,
+                'mobile_sms' => $normalizedMobileSms,
+                'first_name' => $form['first_name'],
+                'last_name' => $form['last_name'],
+                'age' => (int) $age,
+                'service_id' => (int) $validation['service_id'],
+                'date' => $validation['date'],
+                'time' => $validation['time'],
+            ];
             $step = 2;
             $form['mobile'] = $normalizedMobileDisplay;
             $form['age'] = (string) $age;
@@ -110,7 +109,7 @@ if (isPostRequest() && isset($_POST['verify_otp'])) {
         unset($_SESSION['booking_otp']);
         $errors[] = 'OTP expired. Please request a new one.';
         $step = 1;
-    } elseif ($submittedOtp !== (string) ($bookingData['otp'] ?? '')) {
+    } elseif (!verifyOtpSubmission($bookingData['verification'] ?? null, $submittedOtp)) {
         $errors[] = 'Invalid OTP. Please try again.';
     } else {
         $userId = findOrCreateUserByMobile(
@@ -202,6 +201,7 @@ $availableTimeSlots = $step === 1 && $form['date'] ? getAvailableTimeSlots($pdo,
 
                 <form method="POST" class="booking-form" autocomplete="on">
                     <?php echo csrfField(); ?>
+
                     <div class="form-row">
                         <div>
                             <label for="first_name">First Name *</label>
@@ -212,6 +212,7 @@ $availableTimeSlots = $step === 1 && $form['date'] ? getAvailableTimeSlots($pdo,
                             <input type="text" id="last_name" name="last_name" autocomplete="family-name" value="<?php echo e($form['last_name']); ?>" required>
                         </div>
                     </div>
+
                     <div class="form-row">
                         <div>
                             <label for="mobile">Mobile Number *</label>
@@ -222,6 +223,7 @@ $availableTimeSlots = $step === 1 && $form['date'] ? getAvailableTimeSlots($pdo,
                             <input type="number" id="age" name="age" min="1" max="120" autocomplete="off" value="<?php echo e($form['age']); ?>" required>
                         </div>
                     </div>
+
                     <div>
                         <label for="service_id">Service *</label>
                         <select id="service_id" name="service_id" required>
@@ -233,6 +235,7 @@ $availableTimeSlots = $step === 1 && $form['date'] ? getAvailableTimeSlots($pdo,
                             <?php endforeach; ?>
                         </select>
                     </div>
+
                     <div class="form-row">
                         <div>
                             <label for="bookingDate">Preferred Date *</label>
@@ -250,6 +253,7 @@ $availableTimeSlots = $step === 1 && $form['date'] ? getAvailableTimeSlots($pdo,
                             </select>
                         </div>
                     </div>
+
                     <p class="form-note">Choose a date, then pick an available time. Tap the date field to open the calendar on mobile.</p>
                     <button type="submit" name="request_otp" class="btn-submit">Send OTP</button>
                 </form>
@@ -288,7 +292,7 @@ $availableTimeSlots = $step === 1 && $form['date'] ? getAvailableTimeSlots($pdo,
                 </p>
 
                 <?php if (SMS_MOCK_MODE): ?>
-                    <div class="otp-dev">Development mode: OTP is <?php echo e($bookingData['otp']); ?>. The same code is also written to <code>logs/sms_mock.log</code>.</div>
+                    <div class="otp-dev">Development mode: OTP is <?php echo e($bookingData['verification']['otp'] ?? ''); ?>. The same code is also written to <code>logs/sms_mock.log</code>.</div>
                 <?php endif; ?>
             </div>
         <?php else: ?>

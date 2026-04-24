@@ -10,6 +10,21 @@ $statusFilter = $_GET['status'] ?? 'all';
 $serviceFilter = $_GET['service'] ?? 'all';
 $month = $_GET['month'] ?? date('Y-m');
 
+if (!in_array($period, ['day', 'week', 'month'], true)) {
+    $period = 'month';
+}
+if ($statusFilter !== 'all' && !isValidAppointmentStatus($statusFilter)) {
+    $statusFilter = 'all';
+}
+if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+    $month = date('Y-m');
+}
+
+$selectedServiceId = $serviceFilter !== 'all' ? toPositiveInt($serviceFilter) : null;
+if ($serviceFilter !== 'all' && $selectedServiceId === null) {
+    $serviceFilter = 'all';
+}
+
 $servicesList = getServices($pdo);
 
 // Helper: linear regression prediction for next 3 months
@@ -36,20 +51,55 @@ function predictNextMonths($data, $months = 3) {
 
 // Build date condition
 $dateCondition = '';
-if ($period === 'day') $dateCondition = "appointment_date = CURDATE()";
-elseif ($period === 'week') $dateCondition = "appointment_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
-elseif ($period === 'month') $dateCondition = "DATE_FORMAT(appointment_date, '%Y-%m') = '$month'";
+$aliasedDateCondition = '';
+$dateParams = [];
 
-$statusCondition = $statusFilter !== 'all' ? "AND status = '$statusFilter'" : "";
-$serviceCondition = $serviceFilter !== 'all' ? "AND service_id = " . (int)$serviceFilter : "";
+if ($period === 'day') {
+    $dateCondition = 'appointment_date = CURRENT_DATE';
+    $aliasedDateCondition = 'a.appointment_date = CURRENT_DATE';
+} elseif ($period === 'week') {
+    $dateCondition = "appointment_date >= CURRENT_DATE - INTERVAL '7 days'";
+    $aliasedDateCondition = "a.appointment_date >= CURRENT_DATE - INTERVAL '7 days'";
+} elseif ($period === 'month') {
+    $dateCondition = "TO_CHAR(appointment_date, 'YYYY-MM') = ?";
+    $aliasedDateCondition = "TO_CHAR(a.appointment_date, 'YYYY-MM') = ?";
+    $dateParams[] = $month;
+}
 
 // 1. Stats cards
-$stmt = $pdo->query("SELECT status, COUNT(*) as total FROM appointments WHERE 1=1 " . ($dateCondition ? "AND $dateCondition" : "") . " $statusCondition $serviceCondition GROUP BY status");
+$statsSql = 'SELECT status, COUNT(*) AS total FROM appointments WHERE 1=1';
+$statsParams = [];
+if ($dateCondition !== '') {
+    $statsSql .= ' AND ' . $dateCondition;
+    $statsParams = array_merge($statsParams, $dateParams);
+}
+if ($statusFilter !== 'all') {
+    $statsSql .= ' AND status = ?';
+    $statsParams[] = $statusFilter;
+}
+if ($selectedServiceId !== null) {
+    $statsSql .= ' AND service_id = ?';
+    $statsParams[] = $selectedServiceId;
+}
+$statsSql .= ' GROUP BY status';
+$stmt = $pdo->prepare($statsSql);
+$stmt->execute($statsParams);
 $stats = ['pending'=>0,'approved'=>0,'completed'=>0,'rejected'=>0,'no_show'=>0];
 while ($row = $stmt->fetch()) $stats[$row['status']] = (int)$row['total'];
 
 // 2. Top services (by selected period, exclude rejected/no_show)
-$topServicesStmt = $pdo->query("SELECT s.name, COUNT(a.id) as total FROM services s LEFT JOIN appointments a ON s.id = a.service_id WHERE a.status NOT IN ('rejected','no_show') " . ($dateCondition ? "AND $dateCondition" : "") . " GROUP BY s.id ORDER BY total DESC LIMIT 5");
+$topServicesSql = "SELECT s.name, COUNT(a.id) AS total
+    FROM services s
+    LEFT JOIN appointments a ON s.id = a.service_id
+    WHERE a.status NOT IN ('rejected','no_show')";
+$topServicesParams = [];
+if ($aliasedDateCondition !== '') {
+    $topServicesSql .= ' AND ' . $aliasedDateCondition;
+    $topServicesParams = array_merge($topServicesParams, $dateParams);
+}
+$topServicesSql .= ' GROUP BY s.id, s.name ORDER BY total DESC, s.name ASC LIMIT 5';
+$topServicesStmt = $pdo->prepare($topServicesSql);
+$topServicesStmt->execute($topServicesParams);
 $topServices = $topServicesStmt->fetchAll();
 
 // 3. Monthly historical data for the last 12 months (actual)
@@ -58,9 +108,9 @@ $histLabels = [];
 for ($i = 11; $i >= 0; $i--) {
     $histMonth = date('Y-m', strtotime("-$i months"));
     $histLabels[] = date('M Y', strtotime($histMonth));
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE DATE_FORMAT(appointment_date, '%Y-%m') = ? AND status NOT IN ('rejected','no_show') " . ($serviceFilter !== 'all' ? "AND service_id = ?" : ""));
-    if ($serviceFilter !== 'all') {
-        $stmt->execute([$histMonth, $serviceFilter]);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE TO_CHAR(appointment_date, 'YYYY-MM') = ? AND status NOT IN ('rejected','no_show') " . ($selectedServiceId !== null ? "AND service_id = ?" : ""));
+    if ($selectedServiceId !== null) {
+        $stmt->execute([$histMonth, $selectedServiceId]);
     } else {
         $stmt->execute([$histMonth]);
     }
@@ -81,15 +131,15 @@ foreach ($allServices as $svc) {
     $last3 = 0;
     $prev3 = 0;
     for ($i = 0; $i < 3; $i++) {
-        $month = date('Y-m', strtotime("-$i months"));
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE service_id = ? AND DATE_FORMAT(appointment_date, '%Y-%m') = ? AND status NOT IN ('rejected','no_show')");
-        $stmt->execute([$svc['id'], $month]);
+        $trendMonth = date('Y-m', strtotime("-$i months"));
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE service_id = ? AND TO_CHAR(appointment_date, 'YYYY-MM') = ? AND status NOT IN ('rejected','no_show')");
+        $stmt->execute([$svc['id'], $trendMonth]);
         $last3 += (int)$stmt->fetchColumn();
     }
     for ($i = 3; $i < 6; $i++) {
-        $month = date('Y-m', strtotime("-$i months"));
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE service_id = ? AND DATE_FORMAT(appointment_date, '%Y-%m') = ? AND status NOT IN ('rejected','no_show')");
-        $stmt->execute([$svc['id'], $month]);
+        $trendMonth = date('Y-m', strtotime("-$i months"));
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE service_id = ? AND TO_CHAR(appointment_date, 'YYYY-MM') = ? AND status NOT IN ('rejected','no_show')");
+        $stmt->execute([$svc['id'], $trendMonth]);
         $prev3 += (int)$stmt->fetchColumn();
     }
     $change = $prev3 > 0 ? round((($last3 - $prev3) / $prev3) * 100, 1) : ($last3 > 0 ? 100 : 0);
@@ -99,15 +149,15 @@ usort($serviceTrend, fn($a, $b) => $b['trend'] - $a['trend']);
 $topTrending = array_slice($serviceTrend, 0, 5);
 
 // 6. Peak days & times (global, ignoring filters for simplicity)
-$peakDays = $pdo->query("SELECT DAYNAME(appointment_date) as day, COUNT(*) as total FROM appointments WHERE status NOT IN ('rejected','no_show') GROUP BY day ORDER BY total DESC")->fetchAll();
+$peakDays = $pdo->query("SELECT TRIM(TO_CHAR(appointment_date, 'Day')) AS day, COUNT(*) AS total, EXTRACT(DOW FROM appointment_date) AS sort_order FROM appointments WHERE status NOT IN ('rejected','no_show') GROUP BY EXTRACT(DOW FROM appointment_date), TRIM(TO_CHAR(appointment_date, 'Day')) ORDER BY total DESC, sort_order ASC")->fetchAll();
 $peakTimes = $pdo->query("SELECT appointment_time, COUNT(*) as total FROM appointments WHERE status NOT IN ('rejected','no_show') GROUP BY appointment_time ORDER BY total DESC LIMIT 5")->fetchAll();
 
 // 7. Month-over-month comparison (current vs previous month, respecting service filter)
 $currentMonth = date('Y-m');
 $prevMonth = date('Y-m', strtotime('-1 month'));
-$compStmt = $pdo->prepare("SELECT DATE_FORMAT(appointment_date, '%Y-%m') as month, COUNT(*) as total FROM appointments WHERE appointment_date >= ? AND status NOT IN ('rejected','no_show') " . ($serviceFilter !== 'all' ? "AND service_id = ?" : "") . " GROUP BY month");
-if ($serviceFilter !== 'all') {
-    $compStmt->execute([date('Y-m-d', strtotime('-1 month')), $serviceFilter]);
+$compStmt = $pdo->prepare("SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS month, COUNT(*) AS total FROM appointments WHERE appointment_date >= ? AND status NOT IN ('rejected','no_show') " . ($selectedServiceId !== null ? "AND service_id = ?" : "") . " GROUP BY TO_CHAR(appointment_date, 'YYYY-MM')");
+if ($selectedServiceId !== null) {
+    $compStmt->execute([date('Y-m-d', strtotime('-1 month')), $selectedServiceId]);
 } else {
     $compStmt->execute([date('Y-m-d', strtotime('-1 month'))]);
 }
@@ -120,7 +170,18 @@ $trend = $currentCount > $prevCount ? 'Increase' : ($currentCount < $prevCount ?
 
 // 8. NEW: Service distribution pie chart data (current period, exclude rejected/no_show)
 $servicesPie = [];
-$stmt = $pdo->query("SELECT s.name, COUNT(a.id) as bookings FROM services s LEFT JOIN appointments a ON s.id = a.service_id WHERE a.status NOT IN ('rejected','no_show') " . ($dateCondition ? "AND $dateCondition" : "") . " GROUP BY s.id ORDER BY bookings DESC LIMIT 8");
+$pieSql = "SELECT s.name, COUNT(a.id) AS bookings
+    FROM services s
+    LEFT JOIN appointments a ON s.id = a.service_id
+    WHERE a.status NOT IN ('rejected','no_show')";
+$pieParams = [];
+if ($aliasedDateCondition !== '') {
+    $pieSql .= ' AND ' . $aliasedDateCondition;
+    $pieParams = array_merge($pieParams, $dateParams);
+}
+$pieSql .= ' GROUP BY s.id, s.name ORDER BY bookings DESC, s.name ASC LIMIT 8';
+$stmt = $pdo->prepare($pieSql);
+$stmt->execute($pieParams);
 while ($row = $stmt->fetch()) {
     if ($row['bookings'] > 0) {
         $servicesPie[] = ['name' => $row['name'], 'bookings' => (int)$row['bookings']];

@@ -140,7 +140,7 @@ function getPatients(PDO $pdo, ?string $search = null): array
     $sql = "SELECT id, first_name, last_name, email, mobile FROM users WHERE role = 'client'";
     $params = [];
     if ($search !== null && $search !== '') {
-        $sql .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ? OR CONCAT(last_name, ' ', first_name) LIKE ? )";
+        $sql .= " AND (first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ? OR CONCAT(first_name, ' ', last_name) ILIKE ? OR CONCAT(last_name, ' ', first_name) ILIKE ? )";
         $searchTerm = '%' . $search . '%';
         $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm];
     }
@@ -252,12 +252,13 @@ function createAppointment(PDO $pdo, int $userId, $serviceId, $date, $time, stri
     }
     $message = trim((string) $adminMessage);
     $message = $message === '' ? null : $message;
-    $stmt = $pdo->prepare('INSERT INTO appointments (user_id, service_id, appointment_date, appointment_time, status, admin_message) VALUES (?, ?, ?, ?, ?, ?)');
+    $stmt = $pdo->prepare('INSERT INTO appointments (user_id, service_id, appointment_date, appointment_time, status, admin_message) VALUES (?, ?, ?, ?, ?, ?) RETURNING id');
     $created = $stmt->execute([$userId, $validation['service_id'], $validation['date'], $validation['time'], $status, $message]);
-    if (!$created) {
+    $appointmentId = $created ? (int) $stmt->fetchColumn() : 0;
+    if ($appointmentId < 1) {
         return ['success' => false, 'errors' => ['We could not save the appointment. Please try again.']];
     }
-    return ['success' => true, 'errors' => [], 'appointment_id' => (int) $pdo->lastInsertId()];
+    return ['success' => true, 'errors' => [], 'appointment_id' => $appointmentId];
 }
 
 function bookAppointment(PDO $pdo, int $userId, $serviceId, $date, $time): array
@@ -452,11 +453,11 @@ function getMostBookedServices(PDO $pdo, int $limit = 5): array
 function getAppointmentsByPeriod(PDO $pdo, string $period = 'daily'): array
 {
     if ($period === 'daily') {
-        $sql = "SELECT DATE_FORMAT(appointment_date, '%Y-%m-%d') AS label, COUNT(*) AS total FROM appointments GROUP BY appointment_date ORDER BY appointment_date DESC LIMIT 30";
+        $sql = "SELECT TO_CHAR(appointment_date, 'YYYY-MM-DD') AS label, COUNT(*) AS total FROM appointments GROUP BY appointment_date ORDER BY appointment_date DESC LIMIT 30";
     } elseif ($period === 'weekly') {
-        $sql = "SELECT CONCAT(YEAR(appointment_date), '-W', LPAD(WEEK(appointment_date, 1), 2, '0')) AS label, COUNT(*) AS total FROM appointments GROUP BY YEAR(appointment_date), WEEK(appointment_date, 1) ORDER BY YEAR(appointment_date) DESC, WEEK(appointment_date, 1) DESC LIMIT 12";
+        $sql = "SELECT CONCAT(CAST(EXTRACT(YEAR FROM appointment_date) AS INT), '-W', LPAD(CAST(CAST(EXTRACT(WEEK FROM appointment_date) AS INT) AS TEXT), 2, '0')) AS label, COUNT(*) AS total FROM appointments GROUP BY EXTRACT(YEAR FROM appointment_date), EXTRACT(WEEK FROM appointment_date) ORDER BY EXTRACT(YEAR FROM appointment_date) DESC, EXTRACT(WEEK FROM appointment_date) DESC LIMIT 12";
     } else {
-        $sql = "SELECT DATE_FORMAT(appointment_date, '%Y-%m') AS label, COUNT(*) AS total FROM appointments GROUP BY DATE_FORMAT(appointment_date, '%Y-%m') ORDER BY DATE_FORMAT(appointment_date, '%Y-%m') DESC LIMIT 12";
+        $sql = "SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS label, COUNT(*) AS total FROM appointments GROUP BY TO_CHAR(appointment_date, 'YYYY-MM') ORDER BY TO_CHAR(appointment_date, 'YYYY-MM') DESC LIMIT 12";
     }
     $stmt = $pdo->query($sql);
     return $stmt->fetchAll();
@@ -464,7 +465,7 @@ function getAppointmentsByPeriod(PDO $pdo, string $period = 'daily'): array
 
 function getPeakDays(PDO $pdo): array
 {
-    $stmt = $pdo->query("SELECT DAYNAME(appointment_date) AS day, COUNT(*) AS total FROM appointments GROUP BY DAYOFWEEK(appointment_date), DAYNAME(appointment_date) ORDER BY total DESC, DAYOFWEEK(appointment_date) ASC");
+    $stmt = $pdo->query("SELECT TRIM(TO_CHAR(appointment_date, 'Day')) AS day, COUNT(*) AS total FROM appointments GROUP BY EXTRACT(DOW FROM appointment_date), TRIM(TO_CHAR(appointment_date, 'Day')) ORDER BY total DESC, EXTRACT(DOW FROM appointment_date) ASC");
     return $stmt->fetchAll();
 }
 
@@ -478,7 +479,7 @@ function getMonthlyComparison(PDO $pdo): array
 {
     $current = date('Y-m');
     $previous = date('Y-m', strtotime('-1 month'));
-    $stmt = $pdo->prepare("SELECT DATE_FORMAT(appointment_date, '%Y-%m') AS month, COUNT(*) AS total FROM appointments WHERE DATE_FORMAT(appointment_date, '%Y-%m') IN (?, ?) GROUP BY DATE_FORMAT(appointment_date, '%Y-%m')");
+    $stmt = $pdo->prepare("SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS month, COUNT(*) AS total FROM appointments WHERE TO_CHAR(appointment_date, 'YYYY-MM') IN (?, ?) GROUP BY TO_CHAR(appointment_date, 'YYYY-MM')");
     $stmt->execute([$current, $previous]);
     $result = $stmt->fetchAll();
     $data = ['current' => 0, 'previous' => 0];

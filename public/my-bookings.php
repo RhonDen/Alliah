@@ -28,18 +28,16 @@ if (isPostRequest() && isset($_POST['request_otp'])) {
         if (!$patient) {
             $errors[] = 'No patient record was found for that mobile number yet.';
         } else {
-            $otp = generateOtp();
-            $_SESSION['history_otp'] = [
-                'otp' => $otp,
-                'expires' => time() + OTP_EXPIRY_SECONDS,
-                'user_id' => (int) $patient['id'],
-                'mobile' => $patient['mobile'],
-            ];
-
-            if (!sendOtpViaSms($patient['mobile'], $otp)) {
-                unset($_SESSION['history_otp']);
+            $verification = requestOtpViaSms($patient['mobile']);
+            if ($verification === null) {
                 $errors[] = 'Failed to send OTP. Please try again.';
             } else {
+                $_SESSION['history_otp'] = [
+                    'verification' => $verification,
+                    'expires' => time() + OTP_EXPIRY_SECONDS,
+                    'user_id' => (int) $patient['id'],
+                    'mobile' => $patient['mobile'],
+                ];
                 $step = 2;
                 $mobileInput = formatMobileForDisplay($patient['mobile']);
             }
@@ -61,7 +59,7 @@ if (isPostRequest() && isset($_POST['verify_otp'])) {
         unset($_SESSION['history_otp']);
         $errors[] = 'OTP expired. Please request a new one.';
         $step = 1;
-    } elseif ($submittedOtp !== (string) ($lookupData['otp'] ?? '')) {
+    } elseif (!verifyOtpSubmission($lookupData['verification'] ?? null, $submittedOtp)) {
         $errors[] = 'Invalid OTP. Please try again.';
     } else {
         $patient = getUser($pdo, (int) $lookupData['user_id']);
@@ -153,7 +151,7 @@ $lookupData = $_SESSION['history_otp'] ?? null;
                     <a href="my-bookings.php?reset=1" style="color: #1f816a; font-weight: 600;">Use a different mobile number</a>
                 </p>
                 <?php if (SMS_MOCK_MODE): ?>
-                    <div class="success-message" style="margin-top: 1rem;">Development mode: OTP is <?php echo e($lookupData['otp']); ?>. It is also written to <code>logs/sms_mock.log</code>.</div>
+                    <div class="success-message" style="margin-top: 1rem;">Development mode: OTP is <?php echo e($lookupData['verification']['otp'] ?? ''); ?>. It is also written to <code>logs/sms_mock.log</code>.</div>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -175,7 +173,6 @@ $lookupData = $_SESSION['history_otp'] ?? null;
                             <strong><?php echo e($stats['completed']); ?></strong>
                             <span>Completed</span>
                         </div>
-                    </div>
                 <?php endif; ?>
 
                 <?php if (empty($appointments)): ?>
@@ -211,7 +208,6 @@ $lookupData = $_SESSION['history_otp'] ?? null;
                     <a href="client/book.php" class="btn-book">Book Another Appointment</a>
                     <a href="my-bookings.php?reset=1" class="btn-submit" style="text-decoration: none;">Lookup Another Number</a>
                 </div>
-            </div>
         <?php endif; ?>
     </main>
 </div>

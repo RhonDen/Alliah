@@ -10,7 +10,7 @@ $values = [];
 if ($period === 'day') {
     for ($i = 0; $i < 24; $i++) {
         $labels[] = $i . ':00';
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE HOUR(appointment_time) = ? AND appointment_date = CURDATE() AND status NOT IN ('rejected','no_show')");
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE EXTRACT(HOUR FROM appointment_time) = ? AND appointment_date = CURRENT_DATE AND status NOT IN ('rejected','no_show')");
         $stmt->execute([$i]);
         $values[] = (int)$stmt->fetchColumn();
     }
