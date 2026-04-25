@@ -104,7 +104,7 @@ $appointments = getAllAppointments($pdo, $filters);
             </select>
             <select name="status">
                 <option value="">All Statuses</option>
-                <?php foreach (['pending', 'approved', 'rejected', 'completed', 'no_show'] as $st): ?>
+                <?php foreach (['pending', 'approved', 'rejected', 'completed', 'no_show', 'cancelled'] as $st): ?>
                     <option value="<?php echo $st; ?>" <?php echo (isset($filters['status']) && $filters['status'] == $st) ? 'selected' : ''; ?>><?php echo ucfirst($st); ?></option>
                 <?php endforeach; ?>
             </select>
@@ -230,11 +230,11 @@ $appointments = getAllAppointments($pdo, $filters);
             </style>
             <?php foreach ($appointmentsByDate as $date => $dateAppts): ?>
                 <div class="date-section">
-                    <div class="date-header" onclick="toggleDateSection(this)">
+                    <div class="date-header collapsed" onclick="toggleDateSection(this)">
                         <span><?php echo date('l, F j, Y', strtotime($date)); ?> (<?php echo count($dateAppts); ?> appointment<?php echo count($dateAppts) !== 1 ? 's' : ''; ?>)</span>
                         <span class="toggle-icon">▼</span>
                     </div>
-                    <div class="date-appointments">
+                    <div class="date-appointments hidden">
                         <div style="overflow-x: auto;">
                             <table class="appointments-table">
                                 <thead>
@@ -252,7 +252,7 @@ $appointments = getAllAppointments($pdo, $filters);
                                     <tr>
                                         <td>
                                             <strong><?php echo e($app['first_name'] . ' ' . $app['last_name']); ?></strong><br>
-                                            <small style="color: var(--gray-500);"><?php echo e($app['email']); ?></small>
+                                            <small style="color: var(--gray-500);"><?php echo e(formatMobileForDisplay($app['mobile'])); ?></small>
                                         </td>
                                         <td><?php echo e($app['service_name']); ?></td>
                                         <td><?php echo e(formatAppointmentTime($app['appointment_time'])); ?></td>
@@ -269,6 +269,7 @@ $appointments = getAllAppointments($pdo, $filters);
                                                     <option value="rejected" <?php echo $app['status'] === 'rejected' ? 'selected' : ''; ?>>Reject</option>
                                                     <option value="completed" <?php echo $app['status'] === 'completed' ? 'selected' : ''; ?>>Complete</option>
                                                     <option value="no_show" <?php echo $app['status'] === 'no_show' ? 'selected' : ''; ?>>No‑Show</option>
+                                                    <option value="cancelled" <?php echo $app['status'] === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                                                 </select>
                                                 <input type="text" name="message" class="action-input" placeholder="Optional note" value="<?php echo e($app['admin_message'] ?? ''); ?>" <?php echo $isPastDate ? 'disabled' : ''; ?>>
                                                 <?php if (serviceRequiresTeeth($pdo, $app['service_id'])): ?>

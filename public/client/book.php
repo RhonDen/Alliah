@@ -181,12 +181,52 @@ $availableTimeSlots = $step === 1 && $form['date'] ? getAvailableTimeSlots($pdo,
             color: #334155;
             font-size: 0.95rem;
         }
+
+        .client-nav {
+            margin-bottom: 1.25rem;
+        }
+
+        .client-nav-back {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background: #f4faf7;
+            color: #1f816a;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .client-nav-back:hover {
+            background: #1f816a;
+            color: white;
+        }
+
+        .client-nav-link {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1f816a;
+            text-decoration: none;
+            padding: 0.35rem 0;
+        }
+
+        .client-nav-link:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-<?php include dirname(__DIR__, 2) . '/includes/public/partials/nav-public.php'; ?>
-
 <div class="client-container">
+    <div class="client-nav">
+        <a href="<?php echo e(BASE_URL); ?>" class="client-nav-back" aria-label="Back to home">
+            <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <a href="<?php echo e(BASE_URL . 'my-bookings.php'); ?>" class="client-nav-link">Booking History</a>
+    </div>
     <main>
         <?php if (!empty($errors)): ?>
             <div class="error-message"><?php echo nl2br(e(implode("\n", $errors))); ?></div>
@@ -342,7 +382,5 @@ document.getElementById('bookingDate')?.addEventListener('change', function () {
         });
 });
 </script>
-
-<?php include dirname(__DIR__, 2) . '/includes/public/partials/footer.php'; ?>
 </body>
 </html>

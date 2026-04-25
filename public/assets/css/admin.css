@@ -222,6 +222,11 @@ main {
     color: #6b21a5;
     border-color: rgba(139, 92, 246, 0.3);
 }
+.status-cancelled {
+    background: linear-gradient(135deg, rgba(107, 114, 128, 0.2), rgba(107, 114, 128, 0.1));
+    color: #374151;
+    border-color: rgba(107, 114, 128, 0.3);
+}
 
 /* Action Buttons */
 .action-select,
@@ -983,6 +988,7 @@ main {
 .status-rejected { background: #fee2e2; color: #991b1b; }
 .status-completed { background: #dbeafe; color: #1e40af; }
 .status-no_show { background: #f3e8ff; color: #6b21a8; }
+.status-cancelled { background: #f3f4f6; color: #4b5563; }
 
 /* ===== Mobile Responsive ===== */
 @media (max-width: 1024px) {

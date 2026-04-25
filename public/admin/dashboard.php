@@ -4,8 +4,7 @@ requireRole('admin');
 
 $flash = getFlashMessage();
 $stats = getAdminDashboardStats($pdo);
-$recentLimit = 15;
-$recentAppointments = getRecentAppointments($pdo, $recentLimit);
+$recentAppointments = getTodayAppointments($pdo);
 ?>
 <!DOCTYPE html>
 <html lang="en">

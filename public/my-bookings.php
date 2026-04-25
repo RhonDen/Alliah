@@ -3,10 +3,12 @@ require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
 if (isset($_GET['reset'])) {
     unset($_SESSION['history_otp']);
+    unset($_SESSION['history_patient_id']);
     redirect('my-bookings.php');
 }
 
 $errors = [];
+$success = '';
 $step = empty($_SESSION['history_otp']) ? 1 : 2;
 $mobileInput = '';
 $patient = null;
@@ -15,6 +17,34 @@ $stats = null;
 
 if (!empty($_SESSION['history_otp']['mobile'])) {
     $mobileInput = formatMobileForDisplay($_SESSION['history_otp']['mobile']);
+}
+
+// Handle patient cancellation
+if (isPostRequest() && isset($_POST['cancel_appointment'])) {
+    if (!isValidCsrfToken($_POST['_token'] ?? null)) {
+        $errors[] = 'Your session expired. Please try again.';
+    } else {
+        $appointmentId = toPositiveInt($_POST['appointment_id'] ?? null);
+        $reason = trim($_POST['cancel_reason'] ?? '');
+        $patientId = $_SESSION['history_patient_id'] ?? null;
+
+        if ($appointmentId === null) {
+            $errors[] = 'Invalid appointment.';
+        } elseif (!$patientId) {
+            $errors[] = 'Session expired. Please verify your mobile again.';
+            $step = 1;
+        } else {
+            $result = cancelAppointment($pdo, $appointmentId, (int) $patientId, $reason);
+            if ($result['success']) {
+                $success = 'Appointment cancelled successfully.';
+                $appointments = getUserAppointments($pdo, (int) $patientId);
+                $stats = getUserAppointmentStats($pdo, (int) $patientId);
+                $step = 3;
+            } else {
+                $errors = array_merge($errors, $result['errors']);
+            }
+        }
+    }
 }
 
 if (isPostRequest() && isset($_POST['request_otp'])) {
@@ -71,6 +101,7 @@ if (isPostRequest() && isset($_POST['verify_otp'])) {
             $appointments = getUserAppointments($pdo, (int) $patient['id']);
             $stats = getUserAppointmentStats($pdo, (int) $patient['id']);
             $mobileInput = formatMobileForDisplay($patient['mobile']);
+            $_SESSION['history_patient_id'] = (int) $patient['id'];
             unset($_SESSION['history_otp']);
             $step = 3;
         }
@@ -92,35 +123,164 @@ $lookupData = $_SESSION['history_otp'] ?? null;
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/client.css">
     <style>
+        .section-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #1f816a;
+            margin-bottom: 1rem;
+        }
+
         .history-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            display: flex;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
         }
 
         .history-stat {
-            background: linear-gradient(180deg, rgba(240, 248, 245, 0.95), rgba(255, 255, 255, 0.95));
-            border: 1px solid rgba(31, 129, 106, 0.15);
-            border-radius: 20px;
-            padding: 1rem;
+            flex: 1;
+            min-width: 120px;
+            background: #f8fbfa;
+            border: 1px solid rgba(31, 129, 106, 0.12);
+            border-radius: 16px;
+            padding: 1.25rem 1rem;
+            text-align: center;
         }
 
         .history-stat strong {
             display: block;
-            font-size: 1.6rem;
-            color: #1b5445;
-            margin-bottom: 0.2rem;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #1a4c3f;
+            margin-bottom: 0.25rem;
+        }
+
+        .history-stat span {
+            font-size: 0.85rem;
+            color: #597469;
+            font-weight: 500;
+        }
+
+        .history-table-wrap {
+            margin-bottom: 2rem;
+        }
+
+        .history-table-wrap h4 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #597469;
+            margin-bottom: 0.75rem;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.95rem;
+        }
+
+        .history-table thead th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: #1a4c3f;
+            background: #f4faf7;
+            border-bottom: 2px solid rgba(31, 129, 106, 0.15);
+        }
+
+        .history-table thead th:first-child {
+            border-top-left-radius: 12px;
+        }
+
+        .history-table thead th:last-child {
+            border-top-right-radius: 12px;
+        }
+
+        .history-table tbody td {
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid rgba(31, 129, 106, 0.08);
+            color: #334155;
+        }
+
+        .history-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .history-table tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 12px;
+        }
+
+        .history-table tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 12px;
+        }
+
+        .history-table tbody tr:hover td {
+            background: #f8fbfa;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding-top: 0.5rem;
+            border-top: 1px solid rgba(31, 129, 106, 0.1);
+        }
+
+        .client-nav {
+            margin-bottom: 1.25rem;
+        }
+
+        .client-nav-back {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background: #f4faf7;
+            color: #1f816a;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .client-nav-back:hover {
+            background: #1f816a;
+            color: white;
+        }
+
+        .client-nav-link {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1f816a;
+            text-decoration: none;
+            padding: 0.35rem 0;
+        }
+
+        .client-nav-link:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-<?php include dirname(__DIR__) . '/includes/public/partials/nav-public.php'; ?>
-
 <div class="client-container">
+    <div class="client-nav">
+        <a href="<?php echo e(BASE_URL); ?>" class="client-nav-back" aria-label="Back to home">
+            <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <a href="<?php echo e(BASE_URL . 'client/book.php'); ?>" class="client-nav-link">Book Appointment</a>
+    </div>
     <main>
         <?php if (!empty($errors)): ?>
             <div class="error-message"><?php echo nl2br(e(implode("\n", $errors))); ?></div>
+        <?php endif; ?>
+        <?php if ($success !== ''): ?>
+            <div class="success-message"><?php echo e($success); ?></div>
         <?php endif; ?>
 
         <?php if ($step === 1): ?>
@@ -156,14 +316,13 @@ $lookupData = $_SESSION['history_otp'] ?? null;
             </div>
         <?php else: ?>
             <div class="card">
-                <h3><?php echo e($patient['first_name'] . ' ' . $patient['last_name']); ?></h3>
-                <p style="margin-bottom: 1rem; color: #597469;">Mobile: <?php echo e($mobileInput); ?></p>
+                <div class="section-label">History</div>
 
                 <?php if ($stats): ?>
                     <div class="history-stats">
                         <div class="history-stat">
                             <strong><?php echo e($stats['total']); ?></strong>
-                            <span>Total bookings</span>
+                            <span>Total Bookings</span>
                         </div>
                         <div class="history-stat">
                             <strong><?php echo e($stats['upcoming']); ?></strong>
@@ -173,46 +332,64 @@ $lookupData = $_SESSION['history_otp'] ?? null;
                             <strong><?php echo e($stats['completed']); ?></strong>
                             <span>Completed</span>
                         </div>
-                <?php endif; ?>
-
-                <?php if (empty($appointments)): ?>
-                    <p>No bookings were found yet for this mobile number.</p>
-                <?php else: ?>
-                    <div style="overflow-x: auto;">
-                        <table class="appointments-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Service</th>
-                                    <th>Status</th>
-                                    <th>Admin Note</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($appointments as $appointment): ?>
-                                    <tr>
-                                        <td><?php echo e(formatDateForDisplay($appointment['appointment_date'])); ?></td>
-                                        <td><?php echo e(formatAppointmentTime($appointment['appointment_time'])); ?></td>
-                                        <td><?php echo e($appointment['service_name']); ?></td>
-                                        <td><span class="status-badge status-<?php echo e($appointment['status']); ?>"><?php echo e(ucfirst($appointment['status'])); ?></span></td>
-                                        <td><?php echo e($appointment['admin_message'] ?? ''); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
                     </div>
                 <?php endif; ?>
 
-                <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <?php if (empty($appointments)): ?>
+                    <p style="color: #597469;">No bookings were found yet for this mobile number.</p>
+                <?php else: ?>
+                    <div class="history-table-wrap">
+                        <h4>Appointment History</h4>
+                        <div style="overflow-x: auto;">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Service</th>
+                                        <th>Status</th>
+                                        <th>Notes</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($appointments as $appointment): ?>
+                                        <tr>
+                                            <td><?php echo e(formatDateForDisplay($appointment['appointment_date'])); ?></td>
+                                            <td><?php echo e(formatAppointmentTime($appointment['appointment_time'])); ?></td>
+                                            <td><?php echo e($appointment['service_name']); ?></td>
+                                            <td><span class="status-badge status-<?php echo e($appointment['status']); ?>"><?php echo e(ucfirst($appointment['status'])); ?></span></td>
+                                            <td><?php echo e($appointment['admin_message'] ?? '—'); ?></td>
+                                            <td>
+                                                <?php if (in_array($appointment['status'], ['pending', 'approved'], true) && $appointment['appointment_date'] >= date('Y-m-d')): ?>
+                                                    <form method="POST" style="display: flex; flex-direction: column; gap: 0.35rem; min-width: 160px;">
+                                                        <?php echo csrfField(); ?>
+                                                        <input type="hidden" name="appointment_id" value="<?php echo e($appointment['id']); ?>">
+                                                        <input type="text" name="cancel_reason" class="cancel-reason" placeholder="Reason (optional)" maxlength="120">
+                                                        <button type="submit" name="cancel_appointment" class="cancel-btn">Cancel Appointment</button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <span style="color: #94a3b8; font-size: 0.85rem;">—</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <div class="history-actions">
                     <a href="client/book.php" class="btn-book">Book Another Appointment</a>
                     <a href="my-bookings.php?reset=1" class="btn-submit" style="text-decoration: none;">Lookup Another Number</a>
                 </div>
+            </div>
         <?php endif; ?>
     </main>
 </div>
 
 <script src="<?php echo e(BASE_URL . 'assets/js/phone-format.js'); ?>"></script>
-<?php include dirname(__DIR__) . '/includes/public/partials/footer.php'; ?>
 </body>
 </html>
+

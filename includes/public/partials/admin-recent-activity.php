@@ -35,10 +35,10 @@ foreach ($groupedAppointments as $appointments) {
 }
 ?>
 <div class="recent-status-sections">
-    <h3>Recent Booking Activity (Latest <?php echo e($recentLimit); ?>)</h3>
+    <h3>Today's Appointments — <?php echo e(date('F j, Y')); ?></h3>
 
     <?php if (!$hasRecentAppointments): ?>
-        <p>No appointment activity yet.</p>
+        <p>No appointments scheduled for today.</p>
     <?php else: ?>
         <?php foreach ($primaryStatuses as $status): ?>
             <?php $label = $statusLabels[$status]; ?>
@@ -48,7 +48,7 @@ foreach ($groupedAppointments as $appointments) {
                     <span class="status-badge status-<?php echo e($status); ?>"><?php echo count($groupedAppointments[$status]); ?></span>
                 </div>
                 <?php if (empty($groupedAppointments[$status])): ?>
-                    <p style="color: var(--gray-600); margin: 0;">No recent <?php echo strtolower(e($label)); ?> bookings.</p>
+                    <p style="color: var(--gray-600); margin: 0;">No <?php echo strtolower(e($label)); ?> appointments today.</p>
                 <?php else: ?>
                     <div style="overflow-x: auto;">
                         <table class="appointments-table">

@@ -282,6 +282,48 @@ select:focus {
     letter-spacing: 0.2px;
 }
 
+.status-no_show {
+    color: #8b5cf6;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.2px;
+}
+
+.status-cancelled {
+    color: #6b7280;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.2px;
+}
+
+.cancel-btn {
+    background: #fee2e2;
+    color: #991b1b;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+    background: #fecaca;
+    transform: translateY(-1px);
+}
+
+.cancel-reason {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}
+
 /* Flash Messages */
 .error-message,
 .success-message {
@@ -358,7 +400,6 @@ select:focus {
         padding: 1rem 1.25rem;
         font-size: 1rem;
     }
-}
 
     .stat-card {
         padding: 1.25rem 1rem;
@@ -453,7 +494,6 @@ select:focus {
         width: 100%;
         padding: 1rem 1rem;
     }
-}
 
     .stat-card {
         padding: 1rem 0.75rem;

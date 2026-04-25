@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 
-const APPOINTMENT_STATUSES = ['pending', 'approved', 'rejected', 'completed', 'no_show'];
+const APPOINTMENT_STATUSES = ['pending', 'approved', 'rejected', 'completed', 'no_show', 'cancelled'];
 const ACTIVE_APPOINTMENT_STATUSES = ['pending', 'approved'];
 const APPOINTMENT_INTERVAL_MINUTES = 30;
 const CLINIC_OPEN_TIME = '09:00:00';
@@ -958,14 +958,43 @@ function getAppointmentById($pdo, $appointmentId)
 function canTransitionAppointmentStatus($currentStatus, $newStatus)
 {
     $allowedTransitions = [
-        'pending' => ['pending', 'approved', 'rejected'],
-        'approved' => ['approved', 'completed', 'rejected', 'no_show'],
+        'pending' => ['pending', 'approved', 'rejected', 'cancelled'],
+        'approved' => ['approved', 'completed', 'rejected', 'no_show', 'cancelled'],
         'rejected' => ['rejected', 'pending'],
         'completed' => ['completed'],
         'no_show' => ['no_show', 'pending'],
+        'cancelled' => ['cancelled', 'pending'],
     ];
 
     return in_array($newStatus, $allowedTransitions[$currentStatus] ?? [], true);
+}
+
+function cancelAppointment($pdo, $appointmentId, $userId = null, $reason = null)
+{
+    $appointment = getAppointmentById($pdo, $appointmentId);
+    if ($appointment === null) {
+        return ['success' => false, 'errors' => ['Appointment not found.']];
+    }
+
+    // Optional ownership check
+    if ($userId !== null && (int) $appointment['user_id'] !== (int) $userId) {
+        return ['success' => false, 'errors' => ['You can only cancel your own appointments.']];
+    }
+
+    if (!in_array($appointment['status'], ['pending', 'approved'], true)) {
+        return ['success' => false, 'errors' => ['This appointment cannot be cancelled.']];
+    }
+
+    $reasonText = trim((string) $reason);
+    $adminMessage = $reasonText !== '' ? 'Patient cancelled: ' . $reasonText : 'Patient cancelled the appointment.';
+
+    $stmt = $pdo->prepare('UPDATE appointments SET status = ?, admin_message = ? WHERE id = ?');
+    $updated = $stmt->execute(['cancelled', $adminMessage, $appointmentId]);
+
+    return [
+        'success' => $updated,
+        'errors' => $updated ? [] : ['The appointment could not be cancelled.'],
+    ];
 }
 
 function updateAppointmentStatus($pdo, $appointmentId, $status, $adminMessage = null)
@@ -1037,6 +1066,21 @@ function getRecentAppointments($pdo, $limit = 5)
         ORDER BY a.created_at DESC
         LIMIT {$safeLimit}"
     );
+    return $stmt->fetchAll();
+}
+
+function getTodayAppointments($pdo)
+{
+    $today = date('Y-m-d');
+    $stmt = $pdo->prepare(
+        "SELECT a.*, u.first_name, u.last_name, s.name AS service_name
+        FROM appointments a
+        JOIN users u ON a.user_id = u.id
+        JOIN services s ON a.service_id = s.id
+        WHERE a.appointment_date = ?
+        ORDER BY a.appointment_time ASC"
+    );
+    $stmt->execute([$today]);
     return $stmt->fetchAll();
 }
 
