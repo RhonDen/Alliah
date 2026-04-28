@@ -65,11 +65,51 @@ if (isPostRequest() && isset($_POST['request_otp'])) {
                 $_SESSION['history_otp'] = [
                     'verification' => $verification,
                     'expires' => time() + OTP_EXPIRY_SECONDS,
+                    'sent_at' => time(),
+                    'resend_count' => 0,
                     'user_id' => (int) $patient['id'],
                     'mobile' => $patient['mobile'],
                 ];
                 $step = 2;
                 $mobileInput = formatMobileForDisplay($patient['mobile']);
+            }
+        }
+    }
+}
+
+if (isPostRequest() && isset($_POST['resend_otp'])) {
+    $step = 2;
+    $lookupData = $_SESSION['history_otp'] ?? null;
+
+    if (!isValidCsrfToken($_POST['_token'] ?? null)) {
+        $errors[] = 'Your session expired. Please try again.';
+    } elseif (!$lookupData) {
+        $errors[] = 'Session expired. Please request a new OTP.';
+        $step = 1;
+    } elseif (time() > (int) ($lookupData['expires'] ?? 0)) {
+        unset($_SESSION['history_otp']);
+        $errors[] = 'OTP expired. Please request a new one.';
+        $step = 1;
+    } else {
+        $resendCount = (int) ($lookupData['resend_count'] ?? 0);
+        $lastSent = (int) ($lookupData['sent_at'] ?? 0);
+        $cooldownRemaining = 60 - (time() - $lastSent);
+
+        if ($resendCount >= 3) {
+            $errors[] = 'Maximum resend attempts reached. Please start over.';
+        } elseif ($cooldownRemaining > 0) {
+            $errors[] = 'Please wait ' . $cooldownRemaining . ' seconds before resending.';
+        } else {
+            $mobile = $lookupData['mobile'] ?? '';
+            $verification = requestOtpViaSms($mobile);
+            if ($verification === null) {
+                $errors[] = 'Failed to resend OTP. Please try again.';
+            } else {
+                $_SESSION['history_otp']['verification'] = $verification;
+                $_SESSION['history_otp']['expires'] = time() + OTP_EXPIRY_SECONDS;
+                $_SESSION['history_otp']['sent_at'] = time();
+                $_SESSION['history_otp']['resend_count'] = $resendCount + 1;
+                $success = 'A new OTP has been sent to your mobile number.';
             }
         }
     }
@@ -230,6 +270,134 @@ $lookupData = $_SESSION['history_otp'] ?? null;
             border-top: 1px solid rgba(31, 129, 106, 0.1);
         }
 
+        .otp-timer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #597469;
+            margin: 1rem 0 0.5rem;
+        }
+
+        .otp-timer .timer-countdown {
+            font-weight: 700;
+            color: #1f816a;
+        }
+
+        .otp-timer.expired .timer-countdown {
+            color: #dc2626;
+        }
+
+        .resend-form {
+            text-align: center;
+            margin-top: 0.25rem;
+        }
+
+        .resend-btn {
+            background: none;
+            border: none;
+            color: #1f816a;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0.35rem 0.75rem;
+            transition: color 0.2s;
+        }
+
+        .resend-btn:disabled {
+            color: #94a3b8;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
+
+        .resend-btn:hover:not(:disabled) {
+            color: #166b57;
+        }
+
+        .otp-step {
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .otp-step h3 {
+            text-align: center;
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .otp-phone {
+            text-align: center;
+            color: #567267;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .otp-input-wrap {
+            display: flex;
+            justify-content: center;
+            gap: 0.6rem;
+            margin: 1.5rem 0;
+        }
+
+        .otp-digit {
+            width: 54px;
+            height: 64px;
+            border: 2px solid #d1e7dd;
+            border-radius: 14px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a4c3f;
+            background: #f4faf7;
+            transition: all 0.2s ease;
+            caret-color: #1f816a;
+        }
+
+        .otp-digit:focus {
+            outline: none;
+            border-color: #1f816a;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(31, 129, 106, 0.12);
+        }
+
+        .otp-verify-btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #1f816a, #48a48f);
+            color: white;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 0.5rem;
+        }
+
+        .otp-verify-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(31, 129, 106, 0.25);
+        }
+
+        .otp-verify-btn:active {
+            transform: translateY(0);
+        }
+
+        .otp-startover {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .otp-startover a {
+            color: #1f816a;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+        }
+
+        .otp-startover a:hover {
+            text-decoration: underline;
+        }
+
         .client-nav {
             margin-bottom: 1.25rem;
         }
@@ -296,20 +464,37 @@ $lookupData = $_SESSION['history_otp'] ?? null;
                 </form>
             </div>
         <?php elseif ($step === 2 && $lookupData): ?>
-            <div class="card">
+            <div class="card otp-step">
                 <h3>Verify Your Mobile</h3>
-                <p style="margin-bottom: 1rem; color: #597469;">Code sent to <?php echo e(formatMobileForDisplay($lookupData['mobile'])); ?>.</p>
-                <form method="POST">
+                <p class="otp-phone">Code sent to <?php echo e(formatMobileForDisplay($lookupData['mobile'])); ?></p>
+
+                <form method="POST" id="otpForm">
                     <?php echo csrfField(); ?>
-                    <div>
-                        <label for="otp">OTP Code</label>
-                        <input type="text" id="otp" name="otp" inputmode="numeric" maxlength="6" placeholder="123456" required>
+                    <div class="otp-input-wrap" id="otpInputs">
+                        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="0" autocomplete="one-time-code">
+                        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="1">
+                        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="2">
+                        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="3">
+                        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="4">
+                        <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="5">
                     </div>
-                    <button type="submit" name="verify_otp" class="btn-submit">View My Bookings</button>
+                    <input type="hidden" name="otp" id="otpHidden" value="">
+                    <button type="submit" name="verify_otp" class="otp-verify-btn">View My Bookings</button>
                 </form>
-                <p style="margin-top: 1rem; text-align: center;">
-                    <a href="my-bookings.php?reset=1" style="color: #1f816a; font-weight: 600;">Use a different mobile number</a>
-                </p>
+
+                <div class="otp-timer" id="otpTimer" data-expires="<?php echo e($lookupData['expires'] ?? 0); ?>" data-sent="<?php echo e($lookupData['sent_at'] ?? time()); ?>">
+                    Expires in <span class="timer-countdown" id="timerCountdown">--:--</span>
+                </div>
+
+                <form method="POST" class="resend-form">
+                    <?php echo csrfField(); ?>
+                    <button type="submit" name="resend_otp" class="resend-btn" id="resendBtn" disabled>Resend OTP</button>
+                </form>
+
+                <div class="otp-startover">
+                    <a href="my-bookings.php?reset=1">← Use a different mobile number</a>
+                </div>
+
                 <?php if (SMS_MOCK_MODE): ?>
                     <div class="success-message" style="margin-top: 1rem;">Development mode: OTP is <?php echo e($lookupData['verification']['otp'] ?? ''); ?>. It is also written to <code>logs/sms_mock.log</code>.</div>
                 <?php endif; ?>
@@ -390,6 +575,103 @@ $lookupData = $_SESSION['history_otp'] ?? null;
 </div>
 
 <script src="<?php echo e(BASE_URL . 'assets/js/phone-format.js'); ?>"></script>
+<script>
+(function() {
+    const timerEl = document.getElementById('otpTimer');
+    const countdownEl = document.getElementById('timerCountdown');
+    const resendBtn = document.getElementById('resendBtn');
+
+    if (!timerEl || !countdownEl || !resendBtn) return;
+
+    const expiresAt = parseInt(timerEl.dataset.expires || '0', 10) * 1000;
+    const sentAt = parseInt(timerEl.dataset.sent || '0', 10) * 1000;
+    const cooldownMs = 60000; // 60 seconds
+
+    function formatMs(ms) {
+        if (ms <= 0) return '00:00';
+        const totalSeconds = Math.ceil(ms / 1000);
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function updateTimer() {
+        const now = Date.now();
+        const otpRemaining = expiresAt - now;
+        const cooldownRemaining = sentAt + cooldownMs - now;
+
+        if (otpRemaining <= 0) {
+            countdownEl.textContent = '00:00 (Expired)';
+            timerEl.classList.add('expired');
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'OTP Expired — Start Over';
+            return;
+        }
+
+        countdownEl.textContent = formatMs(otpRemaining);
+
+        if (cooldownRemaining > 0) {
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'Resend in ' + formatMs(cooldownRemaining);
+        } else {
+            resendBtn.disabled = false;
+            resendBtn.textContent = 'Resend OTP';
+        }
+    }
+
+    updateTimer();
+    setInterval(updateTimer, 1000);
+
+    // OTP digit input handling
+    const otpInputs = document.querySelectorAll('.otp-digit');
+    const otpHidden = document.getElementById('otpHidden');
+    const otpForm = document.getElementById('otpForm');
+
+    if (otpInputs.length && otpHidden && otpForm) {
+        function updateOtpValue() {
+            otpHidden.value = Array.from(otpInputs).map(i => i.value).join('');
+        }
+
+        otpInputs.forEach((input, idx) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                e.target.value = val.slice(-1);
+                updateOtpValue();
+                if (val && idx + 1) {
+                    otpInputs[Math.min(idx + 1, otpInputs.length - 1)]?.focus();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !input.value && idx - 1 >= 0) {
+                    otpInputs[idx - 1].focus();
+                }
+                if (e.key === 'ArrowLeft' && idx - 1 >= 0) {
+                    otpInputs[idx - 1].focus();
+                }
+                if (e.key === 'ArrowRight' && idx + 1 === 6) {
+                    otpInputs[Math.min(idx + 1, otpInputs.length - 1)]?.focus();
+                }
+            });
+
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, otpInputs.length);
+                pasted.split('').forEach((char, i) => {
+                    if (otpInputs[i]) otpInputs[i].value = char;
+                });
+                updateOtpValue();
+                const nextIdx = Math.min(pasted.length, otpInputs.length - 1);
+                otpInputs[nextIdx]?.focus();
+            });
+        });
+
+        otpForm.addEventListener('submit', () => {
+            updateOtpValue();
+        });
+    }
+})();
+</script>
 </body>
 </html>
 

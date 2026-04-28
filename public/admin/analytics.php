@@ -102,19 +102,36 @@ $topServicesStmt = $pdo->prepare($topServicesSql);
 $topServicesStmt->execute($topServicesParams);
 $topServices = $topServicesStmt->fetchAll();
 
-// 3. Monthly historical data for the last 12 months (actual)
+// 3. Monthly historical data for the last 12 months (actual) — batched single query
 $histData = [];
 $histLabels = [];
+$histMonths = [];
 for ($i = 11; $i >= 0; $i--) {
-    $histMonth = date('Y-m', strtotime("-$i months"));
-    $histLabels[] = date('M Y', strtotime($histMonth));
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE TO_CHAR(appointment_date, 'YYYY-MM') = ? AND status NOT IN ('rejected','no_show') " . ($selectedServiceId !== null ? "AND service_id = ?" : ""));
-    if ($selectedServiceId !== null) {
-        $stmt->execute([$histMonth, $selectedServiceId]);
-    } else {
-        $stmt->execute([$histMonth]);
-    }
-    $histData[] = (int)$stmt->fetchColumn();
+    $m = date('Y-m', strtotime("-$i months"));
+    $histMonths[] = $m;
+    $histLabels[] = date('M Y', strtotime($m));
+    $histData[] = 0; // default
+}
+
+$placeholders = implode(',', array_fill(0, count($histMonths), '?'));
+$histSql = "SELECT TO_CHAR(appointment_date, 'YYYY-MM') AS month, COUNT(*) AS total 
+    FROM appointments 
+    WHERE TO_CHAR(appointment_date, 'YYYY-MM') IN ($placeholders) 
+    AND status NOT IN ('rejected','no_show')";
+$histParams = $histMonths;
+if ($selectedServiceId !== null) {
+    $histSql .= ' AND service_id = ?';
+    $histParams[] = $selectedServiceId;
+}
+$histSql .= ' GROUP BY TO_CHAR(appointment_date, \'YYYY-MM\')';
+$histStmt = $pdo->prepare($histSql);
+$histStmt->execute($histParams);
+$histMap = [];
+while ($row = $histStmt->fetch()) {
+    $histMap[$row['month']] = (int)$row['total'];
+}
+foreach ($histMonths as $idx => $m) {
+    $histData[$idx] = $histMap[$m] ?? 0;
 }
 
 // 4. Prediction for next 3 months (based on last 12 months)
@@ -124,28 +141,48 @@ for ($i = 1; $i <= 3; $i++) {
     $futureLabels[] = date('M Y', strtotime("+$i months"));
 }
 
-// 5. Service demand prediction: which services are trending up?
-$serviceTrend = [];
-$allServices = getServices($pdo);
-foreach ($allServices as $svc) {
-    $last3 = 0;
-    $prev3 = 0;
-    for ($i = 0; $i < 3; $i++) {
-        $trendMonth = date('Y-m', strtotime("-$i months"));
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE service_id = ? AND TO_CHAR(appointment_date, 'YYYY-MM') = ? AND status NOT IN ('rejected','no_show')");
-        $stmt->execute([$svc['id'], $trendMonth]);
-        $last3 += (int)$stmt->fetchColumn();
-    }
-    for ($i = 3; $i < 6; $i++) {
-        $trendMonth = date('Y-m', strtotime("-$i months"));
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE service_id = ? AND TO_CHAR(appointment_date, 'YYYY-MM') = ? AND status NOT IN ('rejected','no_show')");
-        $stmt->execute([$svc['id'], $trendMonth]);
-        $prev3 += (int)$stmt->fetchColumn();
-    }
-    $change = $prev3 > 0 ? round((($last3 - $prev3) / $prev3) * 100, 1) : ($last3 > 0 ? 100 : 0);
-    $serviceTrend[] = ['name' => $svc['name'], 'trend' => $change];
+// 5. Service demand prediction: which services are trending up? — batched single query
+$last3Months = [];
+$prev3Months = [];
+for ($i = 0; $i < 3; $i++) {
+    $last3Months[] = date('Y-m', strtotime("-$i months"));
 }
-usort($serviceTrend, fn($a, $b) => $b['trend'] - $a['trend']);
+for ($i = 3; $i < 6; $i++) {
+    $prev3Months[] = date('Y-m', strtotime("-$i months"));
+}
+$all6Months = array_merge($last3Months, $prev3Months);
+$monthPlaceholders = implode(',', array_fill(0, count($all6Months), '?'));
+
+$trendSql = "SELECT s.name, TO_CHAR(a.appointment_date, 'YYYY-MM') AS month, COUNT(*) AS total
+    FROM services s
+    JOIN appointments a ON s.id = a.service_id
+    WHERE TO_CHAR(a.appointment_date, 'YYYY-MM') IN ($monthPlaceholders)
+    AND a.status NOT IN ('rejected','no_show')
+    GROUP BY s.id, s.name, TO_CHAR(a.appointment_date, 'YYYY-MM')";
+$trendStmt = $pdo->prepare($trendSql);
+$trendStmt->execute($all6Months);
+
+$trendMap = []; // [service_name => ['last3' => x, 'prev3' => y]]
+while ($row = $trendStmt->fetch()) {
+    $name = $row['name'];
+    if (!isset($trendMap[$name])) {
+        $trendMap[$name] = ['last3' => 0, 'prev3' => 0];
+    }
+    if (in_array($row['month'], $last3Months, true)) {
+        $trendMap[$name]['last3'] += (int)$row['total'];
+    } else {
+        $trendMap[$name]['prev3'] += (int)$row['total'];
+    }
+}
+
+$serviceTrend = [];
+foreach ($trendMap as $name => $counts) {
+    $last3 = $counts['last3'];
+    $prev3 = $counts['prev3'];
+    $change = $prev3 > 0 ? round((($last3 - $prev3) / $prev3) * 100, 1) : ($last3 > 0 ? 100 : 0);
+    $serviceTrend[] = ['name' => $name, 'trend' => $change];
+}
+usort($serviceTrend, fn($a, $b) => $b['trend'] <=> $a['trend']);
 $topTrending = array_slice($serviceTrend, 0, 5);
 
 // 6. Peak days & times (global, ignoring filters for simplicity)

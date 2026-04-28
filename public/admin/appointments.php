@@ -25,6 +25,8 @@ if (isPostRequest() && isset($_POST['action'])) {
             setFlashMessage('error', 'Appointment not found.');
         } elseif ($appointment['appointment_date'] < date('Y-m-d')) {
             setFlashMessage('error', 'Cannot update appointments from past dates.');
+        } elseif (in_array($appointment['status'], ['approved', 'rejected'], true)) {
+            setFlashMessage('error', 'This appointment has already been ' . $appointment['status'] . ' and cannot be modified.');
         } else {
             $result = updateAppointmentStatus($pdo, $appointmentId, $status, $message);
             if ($result['success']) {
@@ -104,7 +106,7 @@ $appointments = getAllAppointments($pdo, $filters);
             </select>
             <select name="status">
                 <option value="">All Statuses</option>
-                <?php foreach (['pending', 'approved', 'rejected', 'completed', 'no_show', 'cancelled'] as $st): ?>
+                <?php foreach (['pending', 'approved', 'rejected', 'completed', 'cancelled'] as $st): ?>
                     <option value="<?php echo $st; ?>" <?php echo (isset($filters['status']) && $filters['status'] == $st) ? 'selected' : ''; ?>><?php echo ucfirst($st); ?></option>
                 <?php endforeach; ?>
             </select>
@@ -263,21 +265,23 @@ $appointments = getAllAppointments($pdo, $filters);
                                                 <?php echo csrfField(); ?>
                                                 <input type="hidden" name="appointment_id" value="<?php echo e($app['id']); ?>">
                                                 <?php $isPastDate = $date < date('Y-m-d'); ?>
-                                                <select name="status" class="action-select" <?php echo $isPastDate ? 'disabled' : ''; ?>>
+                                                <?php $isLocked = $isPastDate || in_array($app['status'], ['approved', 'rejected'], true); ?>
+                                                <select name="status" class="action-select" <?php echo $isLocked ? 'disabled' : ''; ?>>
                                                     <option value="pending" <?php echo $app['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
                                                     <option value="approved" <?php echo $app['status'] === 'approved' ? 'selected' : ''; ?>>Approve</option>
                                                     <option value="rejected" <?php echo $app['status'] === 'rejected' ? 'selected' : ''; ?>>Reject</option>
                                                     <option value="completed" <?php echo $app['status'] === 'completed' ? 'selected' : ''; ?>>Complete</option>
-                                                    <option value="no_show" <?php echo $app['status'] === 'no_show' ? 'selected' : ''; ?>>No‑Show</option>
                                                     <option value="cancelled" <?php echo $app['status'] === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                                                 </select>
-                                                <input type="text" name="message" class="action-input" placeholder="Optional note" value="<?php echo e($app['admin_message'] ?? ''); ?>" <?php echo $isPastDate ? 'disabled' : ''; ?>>
+                                                <input type="text" name="message" class="action-input" placeholder="Optional note" value="<?php echo e($app['admin_message'] ?? ''); ?>" <?php echo $isLocked ? 'disabled' : ''; ?>>
                                                 <?php if (serviceRequiresTeeth($pdo, $app['service_id'])): ?>
                                                     <button type="button" class="action-btn open-teeth-chart" data-appointment-id="<?php echo e($app['id']); ?>">🦷 Teeth</button>
                                                 <?php endif; ?>
-                                                <button type="submit" name="action" value="update" class="action-btn" <?php echo $isPastDate ? 'disabled' : ''; ?>>Update</button>
+                                                <button type="submit" name="action" value="update" class="action-btn" <?php echo $isLocked ? 'disabled' : ''; ?>>Update</button>
                                                 <?php if ($isPastDate): ?>
                                                     <small style="color: var(--gray-500); font-size: 0.8rem;">Past date - cannot update</small>
+                                                <?php elseif (in_array($app['status'], ['approved', 'rejected'], true)): ?>
+                                                    <small style="color: var(--gray-500); font-size: 0.8rem;"><?php echo ucfirst($app['status']); ?> - cannot edit</small>
                                                 <?php endif; ?>
                                             </form>
                                         </td>
